@@ -1,183 +1,145 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:iconsax/iconsax.dart';
+import 'package:doc/utils/session_manager.dart';
+import 'package:doc/screens/signin_screen.dart';
 
-class DoctorProfilePage extends StatefulWidget {
+class ProfessionalProfileViewPage extends StatefulWidget {
   final String profileId;
-  const DoctorProfilePage({super.key, required this.profileId});
+  const ProfessionalProfileViewPage({super.key, required this.profileId});
 
   @override
-  State<DoctorProfilePage> createState() => _DoctorProfilePageState();
+  State<ProfessionalProfileViewPage> createState() =>
+      _ProfessionalProfileViewPageState();
 }
 
-class _DoctorProfilePageState extends State<DoctorProfilePage> {
-  bool isLoading = true;
-  Map<String, dynamic>? profileData;
-  String? token;
+class _ProfessionalProfileViewPageState
+    extends State<ProfessionalProfileViewPage> {
+  bool _isLoggingOut = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadTokenAndFetch();
-  }
-
-  Future<void> _loadTokenAndFetch() async {
-    final prefs = await SharedPreferences.getInstance();
-    token = prefs.getString('token');
-    await _fetchProfile();
-  }
-
-  Future<void> _fetchProfile() async {
-    if (token == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Authentication token missing")),
-      );
-      setState(() => isLoading = false);
-      return;
-    }
+  /// 🚪 Logout function
+  Future<void> _logoutUser() async {
+    if (_isLoggingOut) return;
+    setState(() => _isLoggingOut = true);
 
     try {
-      final url = Uri.parse(
-        'https://surgeon-search.onrender.com/api/sugeon/profile/${widget.profileId}',
-      ); // Change this endpoint if backend differs
-      final response = await http.get(
-        url,
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
+      await SessionManager.clearAll();
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('🚪 Logged out successfully.')),
       );
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          profileData = data;
-          isLoading = false;
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error fetching profile: ${response.statusCode}"),
-          ),
-        );
-        setState(() => isLoading = false);
-      }
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Exception: $e")));
-      setState(() => isLoading = false);
+      ).showSnackBar(SnackBar(content: Text('⚠️ Error logging out: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoggingOut = false);
     }
-  }
-
-  Widget _buildField(String label, String? value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "$label: ",
-            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-          ),
-          Expanded(child: Text(value ?? "-", style: GoogleFonts.poppins())),
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final profileId = widget.profileId;
+
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(
-          "My Profile",
-          style: GoogleFonts.poppins(color: Colors.black),
+        title: const Text(
+          'Professional Profile',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.white,
-        elevation: 1,
-        iconTheme: const IconThemeData(color: Colors.black),
+        backgroundColor: Colors.blueAccent,
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: _isLoggingOut ? null : _logoutUser,
+            tooltip: 'Logout',
+          ),
+        ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : profileData == null
-          ? Center(
-              child: Text(
-                "No profile data found",
-                style: GoogleFonts.poppins(),
-              ),
-            )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildField("Full Name", profileData!['fullName']),
-                  _buildField("Email", profileData!['email']),
-                  _buildField("Phone Number", profileData!['phoneNumber']),
-                  _buildField("Location", profileData!['location']),
-                  _buildField("Degree", profileData!['degree']),
-                  _buildField("Speciality", profileData!['speciality']),
-                  _buildField("Sub-Speciality", profileData!['subSpeciality']),
-                  _buildField(
-                    "Summary Profile",
-                    profileData!['summaryProfile'],
-                  ),
-                  _buildField(
-                    "Years of Experience",
-                    profileData!['yearsOfExperience']?.toString(),
-                  ),
-                  _buildField(
-                    "Surgical Experience",
-                    profileData!['surgicalExperience'],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    "Uploaded Documents",
-                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 10),
-                  if (profileData!['profilePictureUrl'] != null)
-                    Image.network(profileData!['profilePictureUrl']),
-                  if (profileData!['cvUrl'] != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: TextButton.icon(
-                        icon: const Icon(Iconsax.document),
-                        label: const Text("View CV"),
-                        onPressed: () {
-                          // ! Launch/view logic (e.g., open in browser or download)
-                        },
-                      ),
-                    ),
-                  if (profileData!['highestDegreeUrl'] != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: TextButton.icon(
-                        icon: const Icon(Iconsax.document),
-                        label: const Text("View Highest Degree"),
-                        onPressed: () {
-                          // Launch/view
-                        },
-                      ),
-                    ),
-                  if (profileData!['uploadLogBookUrl'] != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: TextButton.icon(
-                        icon: const Icon(Iconsax.document_upload),
-                        label: const Text("View Log Book"),
-                        onPressed: () {
-                          // Launch/view
-                        },
-                      ),
-                    ),
-                ],
+      body: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 20),
+            Center(
+              child: CircleAvatar(
+                radius: 50,
+                backgroundColor: Colors.blue.shade100,
+                child: const Icon(Icons.person, size: 60, color: Colors.blue),
               ),
             ),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                "Profile ID: $profileId",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            const Divider(thickness: 1),
+
+            // 👇 Add more profile fields here (name, email, specialty, etc.)
+            const SizedBox(height: 20),
+            const Text(
+              "Your Profile Details",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              "This is where you can display details fetched from the API — "
+              "such as name, specialization, email, and other data tied to your profile ID.",
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+            ),
+
+            const Spacer(),
+
+            // 🔘 Logout Button (Bottom)
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.logout, color: Colors.white),
+                label: _isLoggingOut
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "Logout",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
+                onPressed: _isLoggingOut ? null : _logoutUser,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

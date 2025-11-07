@@ -1,63 +1,85 @@
 // lib/utils/session_manager.dart
-import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
-import 'package:doc/profileprofile/professional_profile_page.dart';
-import 'package:doc/screens/signin_screen.dart';
 
-/// -----------------------------
-/// 🔐 Session Management Helpers
-/// -----------------------------
+/// ---------------------------------------------------------
+/// 🧠 Session Manager
+/// ---------------------------------------------------------
+/// Handles user session data such as userId, profileId, token, etc.
+/// Works safely with null-safety and async calls.
+/// ---------------------------------------------------------
+class SessionManager {
+  static const _keyUserId = 'user_id';
+  static const _keyProfileId = 'profile_id';
+  static const _keyToken = 'auth_token';
+  static const _keyLoginId = 'login_id';
 
-/// ✅ Save user info (generate new user ID if not exists)
-Future<void> saveLoginInfo(String? userId, String token) async {
-  final prefs = await SharedPreferences.getInstance();
-  final uuid = const Uuid();
-
-  // Generate new userId if null or empty
-  final newUserId = (userId == null || userId.isEmpty) ? uuid.v4() : userId;
-
-  await prefs.setString('userId', newUserId);
-  await prefs.setString('token', token);
-
-  print('💾 Saved userId=$newUserId, token=$token');
-}
-
-/// ✅ Retrieve userId and token
-Future<Map<String, String?>> getLoginInfo() async {
-  final prefs = await SharedPreferences.getInstance();
-  return {
-    'userId': prefs.getString('userId'),
-    'token': prefs.getString('token'),
-  };
-}
-
-/// 🚪 Logout — clears all stored login data
-Future<void> logout() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove('userId');
-  await prefs.remove('token');
-  await prefs.remove('login_id');
-  print('🗑️ All login data cleared.');
-}
-
-/// 🧭 Check login status — navigate automatically
-Future<void> checkLoginStatus(BuildContext context) async {
-  final loginInfo = await getLoginInfo();
-
-  if (loginInfo['userId'] != null && loginInfo['token'] != null) {
-    print('✅ User already logged in: ${loginInfo['userId']}');
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const ProfessionalProfilePage(profileId: ''),
-      ),
-    );
-  } else {
-    print('⚠️ No user session found. Redirecting to login.');
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+  /// ✅ Save the logged-in user's ID
+  static Future<void> saveUserId(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUserId, userId);
   }
+
+  /// ✅ Save the profile ID (if your app differentiates it)
+  static Future<void> saveProfileId(String profileId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyProfileId, profileId);
+  }
+
+  /// ✅ Save auth token (for API authorization)
+  static Future<void> saveToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyToken, token);
+  }
+
+  /// ✅ Save unique login session ID
+  static Future<void> saveLoginId(String loginId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLoginId, loginId);
+  }
+
+  /// ✅ Retrieve the stored userId
+  static Future<String?> getUserId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyUserId);
+  }
+
+  /// ✅ Retrieve stored profileId
+  static Future<String?> getProfileId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyProfileId);
+  }
+
+  /// ✅ Retrieve stored token
+  static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyToken);
+  }
+
+  /// ✅ Retrieve login ID
+  static Future<String?> getLoginId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyLoginId);
+  }
+
+  /// ✅ Check if a user is logged in (returns true/false)
+  static Future<bool> isLoggedIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getString(_keyUserId);
+    final token = prefs.getString(_keyToken);
+    return userId != null &&
+        userId.isNotEmpty &&
+        token != null &&
+        token.isNotEmpty;
+  }
+
+  /// 🚪 Log out and clear all stored data
+  static Future<void> clearAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyUserId);
+    await prefs.remove(_keyProfileId);
+    await prefs.remove(_keyToken);
+    await prefs.remove(_keyLoginId);
+  }
+
+  static Future<void> saveRole(String role) async {}
 }

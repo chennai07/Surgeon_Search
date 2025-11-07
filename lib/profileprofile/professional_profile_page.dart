@@ -1,269 +1,263 @@
-import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:iconsax/iconsax.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path/path.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class ProfessionalProfileViewPage extends StatefulWidget {
+class EditProfessionalProfilePage extends StatefulWidget {
   final String profileId;
-  const ProfessionalProfileViewPage({super.key, required this.profileId});
+  final Map<String, dynamic>? existingData;
+
+  const EditProfessionalProfilePage({
+    super.key,
+    required this.profileId,
+    required this.existingData,
+  });
 
   @override
-  State<ProfessionalProfileViewPage> createState() =>
-      _ProfessionalProfileViewPageState();
+  State<EditProfessionalProfilePage> createState() =>
+      _EditProfessionalProfilePageState();
 }
 
-class _ProfessionalProfileViewPageState
-    extends State<ProfessionalProfileViewPage> {
-  bool isLoading = true;
-  Map<String, dynamic>? profileData;
-  String? token;
+class _EditProfessionalProfilePageState
+    extends State<EditProfessionalProfilePage> {
+  final formKey = GlobalKey<FormState>();
+
+  late TextEditingController fullName;
+  late TextEditingController speciality;
+  late TextEditingController subSpeciality;
+  late TextEditingController degree;
+  late TextEditingController experience;
+  late TextEditingController surgicalExp;
+  late TextEditingController portfolio;
+  late TextEditingController summary;
+
+  File? profilePic;
+  File? cv;
+  File? highestDegree;
+  File? logBook;
+
+  bool isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchProfile();
+
+    final d = widget.existingData ?? {};
+
+    fullName = TextEditingController(text: d['fullName'] ?? '');
+    speciality = TextEditingController(text: d['speciality'] ?? '');
+    subSpeciality = TextEditingController(text: d['subSpeciality'] ?? '');
+    degree = TextEditingController(text: d['degree'] ?? '');
+    experience = TextEditingController(
+      text: d['yearsOfExperience']?.toString() ?? '',
+    );
+    surgicalExp = TextEditingController(text: d['surgicalExperience'] ?? '');
+    portfolio = TextEditingController(text: d['portfolioLinks'] ?? '');
+    summary = TextEditingController(text: d['summaryProfile'] ?? '');
   }
 
-  Future<void> _fetchProfile() async {
-    try {
-      final url = Uri.parse(
-        "https://surgeon-search.onrender.com/api/sugeon/profile/${widget.profileId}",
+  Future<File?> pickFile(List<String> extensions) async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: extensions,
+    );
+    if (result != null) return File(result.files.single.path!);
+    return null;
+  }
+
+  Future<void> updateProfile() async {
+    if (!formKey.currentState!.validate()) return;
+
+    setState(() => isLoading = true);
+
+    final uri = Uri.parse(
+      "https://surgeon-search.onrender.com/api/sugeon/profile/update/${widget.profileId}",
+    );
+
+    var req = http.MultipartRequest("PUT", uri);
+
+    req.fields.addAll({
+      "fullName": fullName.text,
+      "speciality": speciality.text,
+      "subSpeciality": subSpeciality.text,
+      "degree": degree.text,
+      "yearsOfExperience": experience.text,
+      "surgicalExperience": surgicalExp.text,
+      "portfolioLinks": portfolio.text,
+      "summaryProfile": summary.text,
+    });
+
+    if (profilePic != null) {
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          "profilePicture",
+          profilePic!.path,
+          filename: basename(profilePic!.path),
+        ),
       );
-      final response = await http.get(url);
-
-      if (response.statusCode == 200) {
-        setState(() {
-          profileData = jsonDecode(response.body);
-          isLoading = false;
-        });
-      } else {
-        Get.snackbar("Error", "Failed to load profile");
-        setState(() => isLoading = false);
-      }
-    } catch (e) {
-      Get.snackbar("Error", "Something went wrong: $e");
-      setState(() => isLoading = false);
     }
+    if (cv != null) {
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          "cv",
+          cv!.path,
+          filename: basename(cv!.path),
+        ),
+      );
+    }
+    if (highestDegree != null) {
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          "highestDegree",
+          highestDegree!.path,
+          filename: basename(highestDegree!.path),
+        ),
+      );
+    }
+    if (logBook != null) {
+      req.files.add(
+        await http.MultipartFile.fromPath(
+          "uploadLogBook",
+          logBook!.path,
+          filename: basename(logBook!.path),
+        ),
+      );
+    }
+
+    var res = await req.send();
+    var msg = await res.stream.bytesToString();
+
+    if (res.statusCode == 200) {
+      Get.snackbar("✅ Success", "Profile Updated Successfully");
+      Get.back(); // return to profile view
+    } else {
+      Get.snackbar("❌ Update Failed", msg);
+    }
+
+    setState(() => isLoading = false);
   }
 
-  Widget _sectionTitle(String title, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 20, bottom: 10),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.blueAccent, size: 22),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow(String label, String? value, IconData icon) {
-    return Card(
-      elevation: 1,
-      margin: const EdgeInsets.symmetric(vertical: 6),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.blueAccent),
-        title: Text(
-          label,
-          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+  Widget fileTile(String label, File? file, Function pick) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
+        const SizedBox(height: 5),
+        ElevatedButton(
+          onPressed: () async {
+            final f = await pick();
+            if (f != null) setState(() => file = f);
+          },
+          child: Text(file == null ? "Choose File" : basename(file.path)),
         ),
-        subtitle: Text(
-          value ?? "Not provided",
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _fileCard(String title, String? url, IconData icon) {
-    bool isImageUrl =
-        url != null &&
-        (url.endsWith(".jpg") || url.endsWith(".jpeg") || url.endsWith(".png"));
-
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.blueAccent),
-        title: Text(
-          title,
-          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
-        ),
-        subtitle: url == null || url.isEmpty
-            ? const Text("No file uploaded")
-            : GestureDetector(
-                onTap: () async {
-                  final uri = Uri.parse(url);
-                  if (await canLaunchUrl(uri)) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
-                  } else {
-                    Get.snackbar("Error", "Cannot open file");
-                  }
-                },
-                child: Text(
-                  isImageUrl ? "View Image" : "Open File",
-                  style: const TextStyle(
-                    color: Colors.blueAccent,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-      ),
+        const SizedBox(height: 10),
+      ],
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    final data = profileData ?? {};
-
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        title: Text(
-          "Professional Profile",
-          style: GoogleFonts.poppins(
-            color: Colors.black,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black),
+        title: const Text("Edit Profile"),
+        backgroundColor: Colors.blueAccent,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionTitle("Basic Information", Iconsax.user),
-            _infoRow("Full Name", data['fullName'], Iconsax.user),
-            _infoRow("Phone Number", data['phoneNumber'], Iconsax.call),
-            _infoRow("Email", data['email'], Iconsax.sms),
-            _infoRow("Location", data['location'], Iconsax.location),
-
-            _sectionTitle("Professional Details", Iconsax.briefcase),
-            _infoRow("Degree", data['degree'], Iconsax.book),
-            _infoRow("Speciality", data['speciality'], Iconsax.hospital),
-            _infoRow("Sub Speciality", data['subSpeciality'], Iconsax.activity),
-            _infoRow(
-              "Years of Experience",
-              data['yearsOfExperience']?.toString(),
-              Iconsax.timer,
-            ),
-            _infoRow(
-              "Surgical Experience",
-              data['surgicalExperience'],
-              Iconsax.medal_star,
-            ),
-
-            _sectionTitle("Portfolio & Summary", Iconsax.note),
-            _infoRow("Portfolio Links", data['portfolioLinks'], Iconsax.link),
-            Card(
-              elevation: 1,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              child: ListTile(
-                leading: Card(
-                  elevation: 1,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  child: ListTile(
-                    leading: Icon(
-                      Icons.format_align_justify,
-                      color: Colors.blueAccent,
-                    ),
-                    title: const Text("Summary Profile"),
-                    subtitle: Text(
-                      data['summaryProfile'] ?? "No summary provided",
-                      style: GoogleFonts.poppins(
-                        fontSize: 15,
-                        color: Colors.black87,
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(15),
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: fullName,
+                        decoration: const InputDecoration(
+                          labelText: "Full Name",
+                        ),
+                        validator: (v) => v!.isEmpty ? "Enter name" : null,
                       ),
-                    ),
-                  ),
-                ),
+                      TextFormField(
+                        controller: speciality,
+                        decoration: const InputDecoration(
+                          labelText: "Speciality",
+                        ),
+                      ),
+                      TextFormField(
+                        controller: subSpeciality,
+                        decoration: const InputDecoration(
+                          labelText: "Sub Speciality",
+                        ),
+                      ),
+                      TextFormField(
+                        controller: degree,
+                        decoration: const InputDecoration(
+                          labelText: "Highest Degree",
+                        ),
+                      ),
+                      TextFormField(
+                        controller: experience,
+                        decoration: const InputDecoration(
+                          labelText: "Years of Experience",
+                        ),
+                        keyboardType: TextInputType.number,
+                      ),
+                      TextFormField(
+                        controller: surgicalExp,
+                        decoration: const InputDecoration(
+                          labelText: "Surgical Experience",
+                        ),
+                      ),
+                      TextFormField(
+                        controller: portfolio,
+                        decoration: const InputDecoration(
+                          labelText: "Portfolio Links",
+                        ),
+                      ),
+                      TextFormField(
+                        controller: summary,
+                        maxLines: 4,
+                        decoration: const InputDecoration(
+                          labelText: "Summary Profile",
+                        ),
+                      ),
+                      const SizedBox(height: 15),
 
-                title: const Text("Summary Profile"),
-                subtitle: Text(
-                  data['summaryProfile'] ?? "No summary provided",
-                  style: GoogleFonts.poppins(
-                    fontSize: 15,
-                    color: Colors.black87,
+                      /// File Uploads
+                      fileTile(
+                        "Profile Picture",
+                        profilePic,
+                        () => pickFile(["jpg", "jpeg", "png"]),
+                      ),
+                      fileTile("CV", cv, () => pickFile(["pdf", "doc"])),
+                      fileTile(
+                        "Highest Degree",
+                        highestDegree,
+                        () => pickFile(["jpg", "png", "pdf"]),
+                      ),
+                      fileTile(
+                        "Upload LogBook",
+                        logBook,
+                        () => pickFile(["jpg", "png", "pdf"]),
+                      ),
+
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: updateProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blueAccent,
+                        ),
+                        child: const Text("Update Profile"),
+                      ),
+                    ],
                   ),
                 ),
               ),
             ),
-
-            _sectionTitle("Attachments", Iconsax.document),
-            _fileCard(
-              "Profile Picture",
-              data['profilePicture'],
-              Iconsax.user_square,
-            ),
-            _fileCard("CV", data['cv'], Iconsax.document),
-            _fileCard("Highest Degree", data['highestDegree'], Iconsax.book),
-            _fileCard(
-              "Upload LogBook",
-              data['uploadLogBook'],
-              Iconsax.folder_open,
-            ),
-
-            const SizedBox(height: 25),
-            Center(
-              child: ElevatedButton.icon(
-                onPressed: () =>
-                    Get.toNamed('/editProfile', arguments: widget.profileId),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 30,
-                    vertical: 12,
-                  ),
-                ),
-                icon: const Icon(Iconsax.edit, color: Colors.white),
-                label: Text(
-                  "Edit Profile",
-                  style: GoogleFonts.poppins(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
     );
   }
 }
