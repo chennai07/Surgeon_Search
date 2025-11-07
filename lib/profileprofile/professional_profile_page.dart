@@ -1,357 +1,269 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:doc/model/api_service.dart';
-import 'package:doc/profileprofile/profile.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
-class ProfessionalProfileFormPage extends StatefulWidget {
-  const ProfessionalProfileFormPage({super.key});
+class ProfessionalProfileViewPage extends StatefulWidget {
+  final String profileId;
+  const ProfessionalProfileViewPage({super.key, required this.profileId});
 
   @override
-  State<ProfessionalProfileFormPage> createState() =>
-      _ProfessionalProfileFormPageState();
+  State<ProfessionalProfileViewPage> createState() =>
+      _ProfessionalProfileViewPageState();
 }
 
-class _ProfessionalProfileFormPageState
-    extends State<ProfessionalProfileFormPage> {
-  final _formKey = GlobalKey<FormState>();
+class _ProfessionalProfileViewPageState
+    extends State<ProfessionalProfileViewPage> {
+  bool isLoading = true;
+  Map<String, dynamic>? profileData;
+  String? token;
 
-  final TextEditingController fullNameController = TextEditingController();
-  final TextEditingController phoneController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
-  final TextEditingController degreeController = TextEditingController();
-  final TextEditingController specialityController = TextEditingController();
-  final TextEditingController subSpecialityController = TextEditingController();
-  final TextEditingController summaryController = TextEditingController();
-  final TextEditingController designationController = TextEditingController();
-  final TextEditingController organizationController = TextEditingController();
-  final TextEditingController fromYearController = TextEditingController();
-  final TextEditingController toYearController = TextEditingController();
-
-  File? _image;
-  File? _cvFile;
-  bool _isLoading = false;
-
-  Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-    );
-    if (pickedFile != null) setState(() => _image = File(pickedFile.path));
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfile();
   }
 
-  Future<void> _pickCV() async {
-    final pickedFile = await ImagePicker().pickImage(
-      source: ImageSource.gallery,
-    );
-    if (pickedFile != null) setState(() => _cvFile = File(pickedFile.path));
-  }
+  Future<void> _fetchProfile() async {
+    try {
+      final url = Uri.parse(
+        "https://surgeon-search.onrender.com/api/sugeon/profile/${widget.profileId}",
+      );
+      final response = await http.get(url);
 
-  Future<void> _selectDate(TextEditingController controller) async {
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime(1900),
-      lastDate: DateTime(2100),
-    );
-    if (picked != null) {
-      controller.text =
-          "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      if (response.statusCode == 200) {
+        setState(() {
+          profileData = jsonDecode(response.body);
+          isLoading = false;
+        });
+      } else {
+        Get.snackbar("Error", "Failed to load profile");
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      Get.snackbar("Error", "Something went wrong: $e");
+      setState(() => isLoading = false);
     }
   }
 
-  Future<void> _submitProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
-
-    final result = await ApiService.createProfile(
-      fullName: fullNameController.text.trim(),
-      phoneNumber: phoneController.text.trim(),
-      email: emailController.text.trim(),
-      location: locationController.text.trim(),
-      degree: degreeController.text.trim(),
-      speciality: specialityController.text.trim(),
-      subSpeciality: subSpecialityController.text.trim(),
-      summaryProfile: summaryController.text.trim(),
-      termsAccepted: true,
-      profileId: "690b081aaf8f7ab1f164407b",
-      portfolioLinks: "linkkk",
-      workExperience: [
-        {
-          "designation": designationController.text.trim(),
-          "healthcareOrganization": organizationController.text.trim(),
-          "from": fromYearController.text.trim(),
-          "to": toYearController.text.trim(),
-          "location": locationController.text.trim(),
-        },
-      ],
-      imageFile: _image,
-      cvFile: _cvFile,
-    );
-
-    setState(() => _isLoading = false);
-
-    if (result['success']) {
-      final data = result['data'];
-      final newProfileId = data['profile']?['_id'] ?? data['_id'] ?? data['id'];
-
-      if (newProfileId != null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('profile_id', newProfileId);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('✅ Profile Created: $newProfileId')),
-        );
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => DoctorProfilePage(
-              initialProfileJson: jsonEncode(data['profile'] ?? data),
+  Widget _sectionTitle(String title, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 10),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.blueAccent, size: 22),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('⚠️ Profile ID missing in response')),
-        );
-      }
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('❌ Failed: ${result['message']}')));
-    }
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow(String label, String? value, IconData icon) {
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        leading: Icon(icon, color: Colors.blueAccent),
+        title: Text(
+          label,
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+        ),
+        subtitle: Text(
+          value ?? "Not provided",
+          style: GoogleFonts.poppins(
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _fileCard(String title, String? url, IconData icon) {
+    bool isImageUrl =
+        url != null &&
+        (url.endsWith(".jpg") || url.endsWith(".jpeg") || url.endsWith(".png"));
+
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      child: ListTile(
+        leading: Icon(icon, color: Colors.blueAccent),
+        title: Text(
+          title,
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+        ),
+        subtitle: url == null || url.isEmpty
+            ? const Text("No file uploaded")
+            : GestureDetector(
+                onTap: () async {
+                  final uri = Uri.parse(url);
+                  if (await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                  } else {
+                    Get.snackbar("Error", "Cannot open file");
+                  }
+                },
+                child: Text(
+                  isImageUrl ? "View Image" : "Open File",
+                  style: const TextStyle(
+                    color: Colors.blueAccent,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    final data = profileData ?? {};
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 20),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text.rich(
-                  TextSpan(
-                    text: "Professional ",
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w400),
-                    children: [
-                      TextSpan(
-                        text: "profile",
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 30),
-                _buildInputField(Iconsax.user, "Full Name", fullNameController),
-                _buildInputField(Iconsax.call, "Phone number", phoneController),
-                _buildInputField(Iconsax.sms, "Email", emailController),
-                _buildInputField(
-                  Iconsax.location,
-                  "Location",
-                  locationController,
-                ),
-                const SizedBox(height: 20),
-
-                _buildLabel("Your Profile Picture"),
-                GestureDetector(
-                  onTap: _pickImage,
-                  child: _filePickerContainer(
-                    "Upload your image",
-                    Iconsax.export,
-                  ),
-                ),
-                if (_image != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Center(
-                      child: CircleAvatar(
-                        radius: 40,
-                        backgroundImage: FileImage(_image!),
-                      ),
-                    ),
-                  ),
-
-                _buildLabel("Degree"),
-                _buildContainerField("Your Degree", degreeController),
-                _buildLabel("Speciality"),
-                _buildContainerField("Your Speciality", specialityController),
-                _buildLabel("Sub-speciality"),
-                _buildContainerField(
-                  "Your Sub-speciality",
-                  subSpecialityController,
-                ),
-                _buildLabel("Summary profile"),
-                _buildContainerField(
-                  "Tell about yourself",
-                  summaryController,
-                  maxLines: 4,
-                ),
-
-                _buildLabel("Work experience"),
-                _buildContainerField("Designation", designationController),
-                _buildContainerField(
-                  "Healthcare Organization",
-                  organizationController,
-                ),
-
-                _buildLabel("Year"),
-                Row(
-                  children: [
-                    _buildDateBox("From", fromYearController),
-                    _buildDateBox("To", toYearController),
-                  ],
-                ),
-
-                const SizedBox(height: 30),
-                _buildLabel("Upload CV (PDF)"),
-                GestureDetector(
-                  onTap: _pickCV,
-                  child: _filePickerContainer(
-                    "Upload your CV",
-                    Iconsax.document_upload,
-                  ),
-                ),
-
-                const SizedBox(height: 30),
-                SizedBox(
-                  width: double.infinity,
-                  height: 55,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFB3E5FC),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: _isLoading ? null : _submitProfile,
-                    child: _isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            "Submit",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
-            ),
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        title: Text(
+          "Professional Profile",
+          style: GoogleFonts.poppins(
+            color: Colors.black,
+            fontWeight: FontWeight.w600,
           ),
+        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle("Basic Information", Iconsax.user),
+            _infoRow("Full Name", data['fullName'], Iconsax.user),
+            _infoRow("Phone Number", data['phoneNumber'], Iconsax.call),
+            _infoRow("Email", data['email'], Iconsax.sms),
+            _infoRow("Location", data['location'], Iconsax.location),
+
+            _sectionTitle("Professional Details", Iconsax.briefcase),
+            _infoRow("Degree", data['degree'], Iconsax.book),
+            _infoRow("Speciality", data['speciality'], Iconsax.hospital),
+            _infoRow("Sub Speciality", data['subSpeciality'], Iconsax.activity),
+            _infoRow(
+              "Years of Experience",
+              data['yearsOfExperience']?.toString(),
+              Iconsax.timer,
+            ),
+            _infoRow(
+              "Surgical Experience",
+              data['surgicalExperience'],
+              Iconsax.medal_star,
+            ),
+
+            _sectionTitle("Portfolio & Summary", Iconsax.note),
+            _infoRow("Portfolio Links", data['portfolioLinks'], Iconsax.link),
+            Card(
+              elevation: 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.symmetric(vertical: 6),
+              child: ListTile(
+                leading: Card(
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  margin: const EdgeInsets.symmetric(vertical: 6),
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.format_align_justify,
+                      color: Colors.blueAccent,
+                    ),
+                    title: const Text("Summary Profile"),
+                    subtitle: Text(
+                      data['summaryProfile'] ?? "No summary provided",
+                      style: GoogleFonts.poppins(
+                        fontSize: 15,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ),
+                ),
+
+                title: const Text("Summary Profile"),
+                subtitle: Text(
+                  data['summaryProfile'] ?? "No summary provided",
+                  style: GoogleFonts.poppins(
+                    fontSize: 15,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+            ),
+
+            _sectionTitle("Attachments", Iconsax.document),
+            _fileCard(
+              "Profile Picture",
+              data['profilePicture'],
+              Iconsax.user_square,
+            ),
+            _fileCard("CV", data['cv'], Iconsax.document),
+            _fileCard("Highest Degree", data['highestDegree'], Iconsax.book),
+            _fileCard(
+              "Upload LogBook",
+              data['uploadLogBook'],
+              Iconsax.folder_open,
+            ),
+
+            const SizedBox(height: 25),
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: () =>
+                    Get.toNamed('/editProfile', arguments: widget.profileId),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 12,
+                  ),
+                ),
+                icon: const Icon(Iconsax.edit, color: Colors.white),
+                label: Text(
+                  "Edit Profile",
+                  style: GoogleFonts.poppins(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 40),
+          ],
         ),
       ),
     );
   }
-
-  // ✅ Reusable UI
-  Widget _buildInputField(
-    IconData icon,
-    String hint,
-    TextEditingController c,
-  ) => Padding(
-    padding: const EdgeInsets.only(bottom: 20),
-    child: Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black26),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextField(
-        controller: c,
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: Colors.black45, size: 20),
-          hintText: hint,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 15,
-            vertical: 18,
-          ),
-        ),
-      ),
-    ),
-  );
-
-  Widget _buildLabel(String label) => Padding(
-    padding: const EdgeInsets.only(bottom: 8, top: 15),
-    child: Text(
-      label,
-      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
-    ),
-  );
-
-  Widget _filePickerContainer(String text, IconData icon) => Container(
-    height: 50,
-    decoration: BoxDecoration(
-      border: Border.all(color: Colors.black26),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-          child: Text(text, style: const TextStyle(color: Colors.black45)),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(right: 15),
-          child: Icon(icon, color: Colors.black45),
-        ),
-      ],
-    ),
-  );
-
-  Widget _buildContainerField(
-    String hint,
-    TextEditingController c, {
-    int maxLines = 1,
-  }) => Container(
-    margin: const EdgeInsets.only(bottom: 15),
-    padding: const EdgeInsets.symmetric(horizontal: 15),
-    decoration: BoxDecoration(
-      border: Border.all(color: Colors.black26),
-      borderRadius: BorderRadius.circular(10),
-    ),
-    child: TextField(
-      controller: c,
-      maxLines: maxLines,
-      decoration: InputDecoration(hintText: hint, border: InputBorder.none),
-    ),
-  );
-
-  Widget _buildDateBox(String label, TextEditingController c) => Expanded(
-    child: GestureDetector(
-      onTap: () => _selectDate(c),
-      child: AbsorbPointer(
-        child: Container(
-          margin: const EdgeInsets.only(right: 10),
-          height: 50,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.black26),
-          ),
-          child: TextField(
-            controller: c,
-            decoration: InputDecoration(
-              prefixIcon: const Icon(Iconsax.calendar_1, size: 18),
-              hintText: label == "From"
-                  ? "Select start date"
-                  : "Select end date",
-              border: InputBorder.none,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
 }

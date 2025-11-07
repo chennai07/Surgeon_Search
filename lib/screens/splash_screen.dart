@@ -1,5 +1,6 @@
 import 'package:doc/profileprofile/professional_profile_page.dart';
 import 'package:doc/screens/signin_screen.dart';
+import 'package:doc/screens/signup_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -30,14 +31,16 @@ class _SplashScreenState extends State<SplashScreen> {
       // ✅ Token valid
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const ProfessionalProfileFormPage()),
+        MaterialPageRoute(
+          builder: (_) => const ProfessionalProfilePage(profileId: ''),
+        ),
       );
     } else {
       // ❌ No token or expired
       await prefs.clear(); // clean old data
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => const SignUpScreen()),
       );
     }
   }

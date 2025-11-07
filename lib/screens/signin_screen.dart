@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:doc/profileprofile/professional_profile_page.dart';
+import 'package:doc/healthcare/hospial_profile.dart';
 import 'package:doc/screens/signup_screen.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:iconsax/iconsax.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart'; // For generating unique IDs
+import 'package:uuid/uuid.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -25,23 +26,22 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _prewarmServer();
+
+    /// ✅ Auto navigate if last role is saved
+    Future.delayed(const Duration(seconds: 1), () {
+      RoleBasedNavigationHelper.autoNavigateIfRoleSaved(context);
+    });
   }
 
-  /// 🌐 Prewarm the backend server to avoid first-time delay
   Future<void> _prewarmServer() async {
     try {
-      final stopwatch = Stopwatch()..start();
       await http
           .get(Uri.parse('https://surgeon-search.onrender.com/api/ping'))
           .timeout(const Duration(seconds: 5));
-      stopwatch.stop();
-      print('🌐 Server awake in ${stopwatch.elapsedMilliseconds} ms');
-    } catch (e) {
-      print('⚠️ Prewarm failed: $e');
-    }
+    } catch (_) {}
   }
 
-  /// ✅ LOGIN FUNCTION (with unique local ID + token storage)
+  /// ✅ SIGN IN FUNCTION
   Future<void> _signIn() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -53,54 +53,35 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    if (_isLoading) return;
     setState(() => _isLoading = true);
 
     final url = Uri.parse('https://surgeon-search.onrender.com/api/signin');
     final prefs = await SharedPreferences.getInstance();
-    final uuid = Uuid();
 
     try {
-      final response = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'email': email, 'password': password}),
-          )
-          .timeout(
-            const Duration(seconds: 12),
-            onTimeout: () =>
-                throw Exception('Server timeout. Please try again.'),
-          );
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('✅ Login successful. Response: $data');
-
         final token = data['token'];
-        final userData = data['user'] ?? data['profile'] ?? data;
+        final userData = data['user'] ?? data['profile'] ?? {};
         final profileId = userData['_id'] ?? userData['profile_id'];
+        final userType = userData['type'] ?? "Surgeon";
 
-        // Generate unique local login ID (not sent to API)
-        final newLoginId = uuid.v4();
-        await prefs.setString('login_id', newLoginId);
-        print('🆕 Generated local login ID: $newLoginId');
-
-        // Save user info (shared helper)
+        await prefs.setString('login_id', const Uuid().v4());
         await saveLoginInfo(profileId ?? '', token ?? '');
 
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('✅ Login Successful!')));
 
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const ProfessionalProfileFormPage(),
-            ),
-          );
-        }
+        /// ✅ Save & Navigate by role
+        await RoleBasedNavigationHelper.saveUserRole(userType);
+        RoleBasedNavigationHelper.navigateBasedOnRole(context, userType);
       } else {
         final error = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -110,18 +91,18 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      print('⚠️ Exception during login: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('⚠️ Error: $e')));
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      setState(() => _isLoading = false);
     }
   }
 
-  /// 🚪 LOGOUT FUNCTION — Deletes local login ID and stored user data
+  /// ✅ LOGOUT FUNCTION — Clears saved role too
   Future<void> _logoutUser() async {
     await logout();
+    await RoleBasedNavigationHelper.clearUserRole();
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('🚪 Logged out successfully.')),
@@ -133,24 +114,6 @@ class _LoginScreenState extends State<LoginScreen> {
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (_) => false,
       );
-    }
-  }
-
-  /// 🧠 CHECK LOGIN STATUS — used in splash or auto-login scenarios
-  Future<void> _checkLoginStatus() async {
-    final loginInfo = await getLoginInfo();
-    if (loginInfo['userId'] != null && loginInfo['token'] != null) {
-      print('✅ Already logged in. UserID: ${loginInfo['userId']}');
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ProfessionalProfileFormPage(),
-          ),
-        );
-      }
-    } else {
-      print('⚠️ No active session found. Redirecting to login.');
     }
   }
 
@@ -186,32 +149,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(child: Image.asset('assets/logo2.png', height: 150)),
                   const SizedBox(height: 60),
 
-                  // ✅ Email Input
                   TextField(
                     controller: _emailController,
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Iconsax.sms, size: 20),
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Iconsax.sms, size: 20),
                       hintText: 'Your email',
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 18,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Colors.black12),
-                      ),
+                      border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // ✅ Password Input
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscureText,
                     decoration: InputDecoration(
-                      prefixIcon: const Icon(Iconsax.lock, size: 20),
+                      prefixIcon: const Icon(Iconsax.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscureText ? Iconsax.eye_slash : Iconsax.eye,
@@ -220,46 +172,37 @@ class _LoginScreenState extends State<LoginScreen> {
                             setState(() => _obscureText = !_obscureText),
                       ),
                       hintText: 'Your password',
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 18,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Colors.black12),
-                      ),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
+
                   const SizedBox(height: 30),
 
-                  // ✅ Sign In Button
                   SizedBox(
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
+                      onPressed: _isLoading ? null : _signIn,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFB3E5FC),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        elevation: 0,
                       ),
-                      onPressed: _isLoading ? null : _signIn,
-                      child: const Text(
-                        'Sign In',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                     ),
                   ),
+
                   const SizedBox(height: 20),
 
-                  // ✅ Sign Up Navigation
                   Center(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -294,7 +237,6 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
 
-            // 🌀 Loading overlay
             if (_isLoading)
               Container(
                 color: Colors.black.withOpacity(0.4),
@@ -306,5 +248,80 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+  }
+}
+
+/// 🌐 ROLE-BASED NAVIGATION HELPER (built-in)
+class RoleBasedNavigationHelper {
+  static Future<void> saveUserRole(String userType) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_selected_role', userType);
+  }
+
+  static Future<String?> getUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('last_selected_role');
+  }
+
+  static Future<void> clearUserRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('last_selected_role');
+  }
+
+  static Future<void> navigateBasedOnRole(
+    BuildContext context,
+    String userType,
+  ) async {
+    Widget? destination;
+
+    switch (userType) {
+      case "Healthcare Organizations":
+        destination = const HealthcareOrganizations();
+        break;
+
+      case "Surgeon":
+        destination = const ProfessionalProfileViewPage(profileId: '');
+        break;
+
+      case "Admin":
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("🧭 Admin Dashboard not yet added")),
+        );
+        return;
+
+      case "Nurse":
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("🧭 Nurse Dashboard not yet added")),
+        );
+        return;
+
+      case "Patient":
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("🧭 Patient Home not yet added")),
+        );
+        return;
+
+      default:
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("⚠️ Unknown role: $userType")));
+        return;
+    }
+
+    await saveUserRole(userType);
+
+    if (destination != null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => destination!),
+      );
+    }
+  }
+
+  static Future<void> autoNavigateIfRoleSaved(BuildContext context) async {
+    final savedRole = await getUserRole();
+    if (savedRole != null) {
+      navigateBasedOnRole(context, savedRole);
+    }
   }
 }

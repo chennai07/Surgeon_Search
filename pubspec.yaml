@@ -40,6 +40,10 @@ dependencies:
   file_picker: ^10.3.3
   iconsax: ^0.0.8
   uuid: ^4.4.0
+  google_fonts: ^6.3.2
+  get: ^4.7.2
+  open_filex: ^4.4.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

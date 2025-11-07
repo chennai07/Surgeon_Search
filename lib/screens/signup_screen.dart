@@ -1,7 +1,11 @@
+// ignore_for_file: unused_import
+
 import 'dart:convert';
+import 'package:doc/healthcare/hospial_profile.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/screens/signin_screen.dart';
+import 'package:doc/profileprofile/professional_profile_page.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -21,8 +25,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
-  // ✅ Added 4 roles
-  final List<String> roles = ["Recruiter", "Hospital", "Healthcare", "Surgeon"];
+  // ✅ Two roles only
+  final List<String> roles = ["Healthcare Organizations", "Surgeon"];
 
   /// ✅ SIGNUP API FUNCTION
   Future<void> signUpUser() async {
@@ -35,22 +39,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
+    setState(() => isLoading = true);
 
     const String apiUrl = "https://surgeon-search.onrender.com/api/signup";
 
+    // ✅ Send all key variants for compatibility
     final Map<String, dynamic> requestBody = {
       "fullname": nameController.text.trim(),
+      "name": nameController.text.trim(),
       "email": emailController.text.trim(),
       "mobilenumber": phoneController.text.trim(),
+      "mobile": phoneController.text.trim(),
       "password": passwordController.text.trim(),
-      "type": selectedRole, // ✅ Now supports 4 role types
+      "type": selectedRole,
     };
 
     try {
-      print("📤 Sending Signup Data: $requestBody");
+      debugPrint("📤 Sending Signup Data: $requestBody");
 
       final response = await http.post(
         Uri.parse(apiUrl),
@@ -58,11 +63,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
         body: jsonEncode(requestBody),
       );
 
-      print("📥 Response: ${response.statusCode}");
-      print("📄 Body: ${response.body}");
+      debugPrint("📥 Response: ${response.statusCode}");
+      debugPrint("📄 Body: ${response.body}");
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -72,29 +78,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         );
 
-        // ✅ Navigate to Sign In after short delay
+        // ✅ Navigate to login screen with redirect based on selected role
         Future.delayed(const Duration(seconds: 1), () {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => LoginScreen()),
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
           );
         });
       } else {
+        // Show specific backend error
         String errorMessage = "Signup failed";
         try {
           final error = jsonDecode(response.body);
-          errorMessage = error['message'] ?? error.toString();
+          errorMessage =
+              error['error'] ??
+              error['message'] ??
+              "Server Error (${response.statusCode})";
         } catch (_) {
-          errorMessage = response.body.isNotEmpty
-              ? response.body
-              : "Server Error (${response.statusCode})";
+          errorMessage = "Unexpected response (${response.statusCode})";
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.redAccent,
-          ),
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -105,13 +110,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       );
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
-  /// ✅ UI
+  /// ✅ UI DESIGN
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -149,7 +152,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Dropdown
+              // 🔹 Dropdown (Role Selector)
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -157,15 +160,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                   gradient: const LinearGradient(
                     colors: [Color(0xFF0A5DB2), Color(0xFF3BA7F5)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.blue.withOpacity(0.2),
+                      blurRadius: 6,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: selectedRole,
                     dropdownColor: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
                     icon: const Icon(
                       Icons.keyboard_arrow_down,
                       color: Colors.white,
@@ -181,9 +194,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         .map(
                           (role) => DropdownMenuItem(
                             value: role,
-                            child: Text(
-                              role,
-                              style: const TextStyle(color: Colors.black),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  role == "Healthcare Organizations"
+                                      ? Icons.local_hospital
+                                      : Icons.person,
+                                  color: Colors.black54,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  role,
+                                  style: const TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         )
@@ -193,7 +221,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 25),
 
-              // Input Fields
+              // 🔹 Input Fields
               _buildField(
                 label: "Full Name",
                 hint: "Full name",
@@ -215,7 +243,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 keyboardType: TextInputType.emailAddress,
               ),
 
-              // Password
+              // 🔹 Password Field
               const Text(
                 "Password",
                 style: TextStyle(fontWeight: FontWeight.w600),
@@ -248,7 +276,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 25),
 
-              // Signup Button
+              // 🔹 Signup Button
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -274,7 +302,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Sign In link
+              // 🔹 Sign In link
               Center(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -307,7 +335,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  /// ✅ Helper Input Builder
+  /// 🔹 Reusable Input Builder
   Widget _buildField({
     required String label,
     required String hint,

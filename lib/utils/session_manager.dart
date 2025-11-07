@@ -49,7 +49,9 @@ Future<void> checkLoginStatus(BuildContext context) async {
     print('✅ User already logged in: ${loginInfo['userId']}');
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const ProfessionalProfileFormPage()),
+      MaterialPageRoute(
+        builder: (_) => const ProfessionalProfilePage(profileId: ''),
+      ),
     );
   } else {
     print('⚠️ No user session found. Redirecting to login.');
