@@ -29,12 +29,12 @@ class _SplashScreenState extends State<SplashScreen> {
         expiry != null &&
         DateTime.now().millisecondsSinceEpoch < expiry) {
       // ✅ Token valid
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const ProfessionalProfilePage(profileId: ''),
-        ),
-      );
+      // Navigator.pushReplacement(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (_) => const ProfessionalProfilePage(profileId: ''),
+      //   ),
+      // );
     } else {
       // ❌ No token or expired
       await prefs.clear(); // clean old data
