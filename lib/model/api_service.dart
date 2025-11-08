@@ -32,7 +32,7 @@ class ApiService {
     File? logBookFile,
   }) async {
     try {
-      var uri = Uri.parse('$baseUrl/create-profile');
+      var uri = Uri.parse('$baseUrl/add');
       var request = http.MultipartRequest('POST', uri);
 
       // ✅ Normal fields
@@ -102,83 +102,40 @@ class ApiService {
 
       print('📩 API Response (${response.statusCode}): ${response.body}');
 
+      final body = response.body;
+      final ct = response.headers['content-type'] ?? '';
+      final trimmed = body.trimLeft();
+      final isJson = ct.contains('application/json') ||
+          trimmed.startsWith('{') ||
+          trimmed.startsWith('[');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        return {'success': true, 'data': data};
+        if (isJson) {
+          try {
+            final data = jsonDecode(body);
+            return {'success': true, 'data': data};
+          } catch (_) {
+            return {'success': true, 'data': {'raw': body}};
+          }
+        } else {
+          return {'success': true, 'data': {'raw': body}};
+        }
       } else {
-        final err = jsonDecode(response.body);
-        return {'success': false, 'message': err['message'] ?? 'Server error'};
+        if (isJson) {
+          try {
+            final err = jsonDecode(body);
+            return {'success': false, 'message': err['message'] ?? body};
+          } catch (_) {
+            return {'success': false, 'message': body};
+          }
+        } else {
+          final snippet = body.length > 200 ? body.substring(0, 200) : body;
+          return {
+            'success': false,
+            'message': 'HTTP ${response.statusCode}: $snippet'
+          };
+        }
       }
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
-
-  /// ---------------------------------------------------------
-  /// Healthcare APIs
-  /// ---------------------------------------------------------
-  static Future<Map<String, dynamic>> addHealthcareProfile({
-    required String healthcareId,
-    required String hospitalName,
-    required String phoneNumber,
-    required String email,
-    required String location,
-    required String hospitalType,
-    required List<String> departmentsAvailable,
-    required String hospitalOverview,
-    required Map<String, String> hrContact,
-    required String hospitalWebsite,
-    required bool termsAccepted,
-    File? logoFile,
-  }) async {
-    try {
-      final uri = Uri.parse('$healthcareBase/add');
-      final req = http.MultipartRequest('POST', uri);
-
-      req.fields.addAll({
-        'hospitalName': hospitalName,
-        'phoneNumber': phoneNumber,
-        'email': email,
-        'location': location,
-        'hospitalType': hospitalType,
-        'hospitalOverview': hospitalOverview,
-        'hrContact[fullName]': hrContact['fullName'] ?? '',
-        'hrContact[designation]': hrContact['designation'] ?? '',
-        'hrContact[mobileNumber]': hrContact['mobileNumber'] ?? '',
-        'hrContact[email]': hrContact['email'] ?? '',
-        'hospitalWebsite': hospitalWebsite,
-        'termsAccepted': termsAccepted.toString(),
-        'healthcare_id': healthcareId,
-      });
-
-      for (int i = 0; i < departmentsAvailable.length; i++) {
-        req.fields['departmentsAvailable[$i]'] = departmentsAvailable[i];
-      }
-
-      if (logoFile != null) {
-        req.files.add(await http.MultipartFile.fromPath('hospitalLogo', logoFile.path));
-      }
-
-      final streamed = await req.send();
-      final res = await http.Response.fromStream(streamed);
-
-      if (res.statusCode == 200 || res.statusCode == 201) {
-        return {'success': true, 'data': jsonDecode(res.body)};
-      }
-      return {'success': false, 'message': res.body};
-    } catch (e) {
-      return {'success': false, 'message': e.toString()};
-    }
-  }
-
-  static Future<Map<String, dynamic>> fetchHealthcareProfile(String healthcareId) async {
-    try {
-      final url = Uri.parse('$healthcareBase/healthcare-profile/$healthcareId');
-      final res = await http.get(url);
-      if (res.statusCode == 200) {
-        return {'success': true, 'data': jsonDecode(res.body)};
-      }
-      return {'success': false, 'message': res.body};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }

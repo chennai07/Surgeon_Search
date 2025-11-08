@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +7,7 @@ import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:doc/healthcare/hospital_profile.dart';
+import 'package:http/http.dart' as http;
 
 class HospitalForm extends StatefulWidget {
   final String healthcareId;
@@ -15,7 +17,147 @@ class HospitalForm extends StatefulWidget {
   State<HospitalForm> createState() => _HospitalFormState();
 }
 
- 
+// Inline helpers to avoid missing ApiService methods during build
+Future<Map<String, dynamic>> _addHealthcareProfile({
+  required String healthcareId,
+  required String hospitalName,
+  required String phoneNumber,
+  required String email,
+  required String location,
+  required String hospitalType,
+  required List<String> departmentsAvailable,
+  required String hospitalOverview,
+  required Map<String, String> hrContact,
+  required String hospitalWebsite,
+  required bool termsAccepted,
+  File? logoFile,
+}) async {
+  try {
+    final uri = Uri.parse('https://surgeon-search.onrender.com/api/healthcare/add');
+    final req = http.MultipartRequest('POST', uri);
+
+    req.fields.addAll({
+      'hospitalName': hospitalName,
+      'phoneNumber': phoneNumber,
+      'email': email,
+      'location': location,
+      'hospitalType': hospitalType,
+      'hospitalOverview': hospitalOverview,
+      'hrContact[fullName]': hrContact['fullName'] ?? '',
+      'hrContact[designation]': hrContact['designation'] ?? '',
+      'hrContact[mobileNumber]': hrContact['mobileNumber'] ?? '',
+      'hrContact[email]': hrContact['email'] ?? '',
+      'hospitalWebsite': hospitalWebsite,
+      'termsAccepted': termsAccepted.toString(),
+      'healthcare_id': healthcareId,
+    });
+
+    for (int i = 0; i < departmentsAvailable.length; i++) {
+      req.fields['departmentsAvailable[$i]'] = departmentsAvailable[i];
+    }
+
+    if (logoFile != null) {
+      req.files.add(await http.MultipartFile.fromPath('hospitalLogo', logoFile.path));
+    }
+
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
+
+    final body = res.body;
+    final ct = res.headers['content-type'] ?? '';
+    final trimmed = body.trimLeft();
+    final isJson = ct.contains('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[');
+
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      if (isJson) {
+        try {
+          return {'success': true, 'data': jsonDecode(body)};
+        } catch (_) {
+          return {'success': true, 'data': {'raw': body}};
+        }
+      } else {
+        return {'success': true, 'data': {'raw': body}};
+      }
+    }
+    if (isJson) {
+      try {
+        final err = jsonDecode(body);
+        return {'success': false, 'message': err['message'] ?? body};
+      } catch (_) {
+        return {'success': false, 'message': body};
+      }
+    }
+    final snippet = body.length > 200 ? body.substring(0, 200) : body;
+    return {'success': false, 'message': 'HTTP ${res.statusCode}: $snippet'};
+  } catch (e) {
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+Future<Map<String, dynamic>> _fetchHealthcareProfile(String healthcareId) async {
+  try {
+    final url = Uri.parse('https://surgeon-search.onrender.com/api/healthcare/healthcare-profile/$healthcareId');
+    final res = await http.get(url);
+    final body = res.body;
+    final ct = res.headers['content-type'] ?? '';
+    final trimmed = body.trimLeft();
+    final isJson = ct.contains('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[');
+    if (res.statusCode == 200) {
+      if (isJson) {
+        try {
+          return {'success': true, 'data': jsonDecode(body)};
+        } catch (_) {
+          return {'success': true, 'data': {'raw': body}};
+        }
+      } else {
+        return {'success': true, 'data': {'raw': body}};
+      }
+    }
+    if (isJson) {
+      try {
+        final err = jsonDecode(body);
+        return {'success': false, 'message': err['message'] ?? body};
+      } catch (_) {
+        return {'success': false, 'message': body};
+      }
+    }
+    final snippet = body.length > 200 ? body.substring(0, 200) : body;
+    return {'success': false, 'message': 'HTTP ${res.statusCode}: $snippet'};
+  } catch (e) {
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
+class HospitalProfileView extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const HospitalProfileView({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final b = data;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Hospital Profile')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: [
+            Text('Name: ${b['hospitalName'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('Email: ${b['email'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('Phone: ${b['phoneNumber'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('Location: ${b['location'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('Type: ${b['hospitalType'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('Departments: ${(b['departmentsAvailable'] ?? []).toString()}'),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _HospitalFormState extends State<HospitalForm> {
   final _formKey = GlobalKey<FormState>();
@@ -79,8 +221,8 @@ class _HospitalFormState extends State<HospitalForm> {
       return;
     }
 
-    // Submit to backend
-    final res = await ApiService.addHealthcareProfile(
+    // Submit to backend (inline to avoid missing ApiService helpers)
+    final res = await _addHealthcareProfile(
       healthcareId: widget.healthcareId,
       hospitalName: hospitalNameController.text.trim(),
       phoneNumber: phoneController.text.trim(),
@@ -102,12 +244,12 @@ class _HospitalFormState extends State<HospitalForm> {
 
     if (res['success'] == true) {
       // Fetch profile and show
-      final prof = await ApiService.fetchHealthcareProfile(widget.healthcareId);
+      final prof = await _fetchHealthcareProfile(widget.healthcareId);
       if (prof['success'] == true) {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => const HospitalProfile(),
+            builder: (_) => HospitalProfile(),
           ),
         );
       } else {

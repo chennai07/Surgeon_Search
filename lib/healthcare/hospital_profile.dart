@@ -28,7 +28,11 @@ class HospitalProfile extends StatelessWidget {
           children: [
             // ✅ Hospital Logo
             Center(
-              child: Image.asset('assets/logo2.png', height: 100),
+              child: Image.asset(
+                'assets/logo2.png',
+                height: 100,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 80, color: Colors.grey),
+              ),
             ),
             const SizedBox(height: 10),
 
@@ -241,6 +245,7 @@ class HospitalProfile extends StatelessWidget {
                 'assets/logo2.png',
                 height: 40,
                 width: 40,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image, size: 36, color: Colors.grey),
               ),
               const SizedBox(width: 10),
               Expanded(

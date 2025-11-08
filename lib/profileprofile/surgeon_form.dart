@@ -5,7 +5,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:google_fonts/google_fonts.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:doc/model/api_service.dart';
+import 'package:doc/profileprofile/surgeon_profile.dart';
 
 class SurgeonForm extends StatefulWidget {
   final String profileId;
@@ -61,14 +63,36 @@ class _SurgeonFormState extends State<SurgeonForm> {
   late TextEditingController surgicalExp;
   late TextEditingController portfolio;
   late TextEditingController summary;
+  late TextEditingController phoneNumber;
+  late TextEditingController email;
+  late TextEditingController location;
+  late TextEditingController stateCtrl;
+  late TextEditingController districtCtrl;
  
   File? profilePic;
   File? cv;
   File? highestDegree;
   File? logBook;
 
+  String? selectedYearsExperience;
+  String? selectedSurgicalExperience;
+
+  final List<String> expOptions = const [
+    "0-10",
+    "10-50",
+    "50-100",
+    "100-500",
+    "1000-5000",
+    "5000-10000",
+    "More than 10000",
+  ];
+
   bool isLoading = false;
   bool hasProfile = false;
+  bool termsAccepted = false;
+  List<Map<String, dynamic>> workExperiences = [
+    {"designation": "", "organization": "", "from": "", "to": "", "location": ""}
+  ];
 
   @override
   void initState() {
@@ -86,6 +110,17 @@ class _SurgeonFormState extends State<SurgeonForm> {
     surgicalExp = TextEditingController(text: d['surgicalExperience'] ?? '');
     portfolio = TextEditingController(text: d['portfolioLinks'] ?? '');
     summary = TextEditingController(text: d['summaryProfile'] ?? '');
+    phoneNumber = TextEditingController(text: d['phoneNumber'] ?? '');
+    email = TextEditingController(text: d['email'] ?? '');
+    location = TextEditingController(text: d['location'] ?? '');
+    stateCtrl = TextEditingController(text: d['state'] ?? '');
+    districtCtrl = TextEditingController(text: d['district'] ?? '');
+    selectedYearsExperience = d['yearsOfExperience']?.toString().isNotEmpty == true
+        ? d['yearsOfExperience'].toString()
+        : null;
+    selectedSurgicalExperience = d['surgicalExperience']?.toString().isNotEmpty == true
+        ? d['surgicalExperience'].toString()
+        : null;
 
     // Fetch and prefill if profile exists for given profileId
     _loadProfileIfAny();
@@ -105,10 +140,31 @@ class _SurgeonFormState extends State<SurgeonForm> {
         speciality.text = (p['speciality'] ?? speciality.text) as String;
         subSpeciality.text = (p['subSpeciality'] ?? subSpeciality.text) as String;
         degree.text = (p['degree'] ?? degree.text) as String;
-        experience.text = (p['yearsOfExperience']?.toString() ?? experience.text);
-        surgicalExp.text = (p['surgicalExperience'] ?? surgicalExp.text) as String;
+        selectedYearsExperience = p['yearsOfExperience']?.toString() ?? selectedYearsExperience;
+        selectedSurgicalExperience = (p['surgicalExperience'] ?? selectedSurgicalExperience)?.toString();
         portfolio.text = (p['portfolioLinks'] ?? portfolio.text) as String;
         summary.text = (p['summaryProfile'] ?? summary.text) as String;
+        phoneNumber.text = (p['phoneNumber'] ?? phoneNumber.text) as String;
+        email.text = (p['email'] ?? email.text) as String;
+        location.text = (p['location'] ?? location.text) as String;
+        stateCtrl.text = (p['state'] ?? stateCtrl.text) as String;
+        districtCtrl.text = (p['district'] ?? districtCtrl.text) as String;
+        final wx = p['workExperience'];
+        if (wx is List) {
+          workExperiences = wx.map<Map<String, dynamic>>((e) {
+            final m = (e is Map) ? e : {};
+            return {
+              'designation': m['designation'] ?? '',
+              'organization': m['healthcareOrganization'] ?? m['organization'] ?? '',
+              'from': m['from']?.toString() ?? '',
+              'to': m['to']?.toString() ?? '',
+              'location': m['location'] ?? '',
+            };
+          }).toList();
+          if (workExperiences.isEmpty) {
+            workExperiences = [{"designation": "", "organization": "", "from": "", "to": "", "location": ""}];
+          }
+        }
       }
     }
     setState(() => isLoading = false);
@@ -139,10 +195,12 @@ class _SurgeonFormState extends State<SurgeonForm> {
       "speciality": speciality.text,
       "subSpeciality": subSpeciality.text,
       "degree": degree.text,
-      "yearsOfExperience": experience.text,
-      "surgicalExperience": surgicalExp.text,
+      "yearsOfExperience": selectedYearsExperience ?? '',
+      "surgicalExperience": selectedSurgicalExperience ?? '',
       "portfolioLinks": portfolio.text,
       "summaryProfile": summary.text,
+      "state": stateCtrl.text,
+      "district": districtCtrl.text,
     });
 
     if (profilePic != null) {
@@ -193,7 +251,9 @@ class _SurgeonFormState extends State<SurgeonForm> {
         if (!mounted) return;
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => SurgeonProfileView(data: data)),
+          MaterialPageRoute(
+            builder: (_) => ProfessionalProfileViewPage(profileId: widget.profileId),
+          ),
         );
       } else {
         Get.snackbar("Profile", "Updated, but failed to fetch profile");
@@ -212,20 +272,26 @@ class _SurgeonFormState extends State<SurgeonForm> {
 
     final result = await ApiService.createProfile(
       fullName: fullName.text,
-      phoneNumber: '',
-      email: '',
+      phoneNumber: phoneNumber.text,
+      email: email.text,
       location: '',
       degree: degree.text,
       speciality: speciality.text,
       subSpeciality: subSpeciality.text,
       summaryProfile: summary.text,
-      termsAccepted: true,
+      termsAccepted: termsAccepted,
       profileId: widget.profileId,
       portfolioLinks: portfolio.text,
       workExperience: const [],
       departmentsAvailable: const [],
       imageFile: profilePic,
       cvFile: cv,
+      highestDegreeFile: highestDegree,
+      logBookFile: logBook,
+      yearsOfExperience: selectedYearsExperience ?? '',
+      surgicalExperience: selectedSurgicalExperience ?? '',
+      state: stateCtrl.text,
+      district: districtCtrl.text,
     );
 
     if (result['success'] == true) {
@@ -237,7 +303,9 @@ class _SurgeonFormState extends State<SurgeonForm> {
         if (!mounted) return;
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => SurgeonProfileView(data: data)),
+          MaterialPageRoute(
+            builder: (_) => ProfessionalProfileViewPage(profileId: widget.profileId),
+          ),
         );
       }
     } else {
@@ -247,122 +315,273 @@ class _SurgeonFormState extends State<SurgeonForm> {
     setState(() => isLoading = false);
   }
 
-  Widget fileTile(String label, File? file, Function pick) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: GoogleFonts.poppins(fontWeight: FontWeight.w500)),
-        const SizedBox(height: 5),
-        ElevatedButton(
-          onPressed: () async {
-            final f = await pick();
-            if (f != null) setState(() => file = f);
-          },
-          child: Text(file == null ? "Choose File" : p.basename(file.path)),
-        ),
-        const SizedBox(height: 10),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Edit Profile"),
-        backgroundColor: Colors.blueAccent,
+// Helpers to match provided UI
+InputDecoration inputDecoration(String hint) => InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Colors.grey),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.black12),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
-              padding: const EdgeInsets.all(15),
-              child: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.blueAccent),
+      ),
+    );
+
+Widget titleText(String text) => Padding(
+      padding: const EdgeInsets.only(top: 20, bottom: 6),
+      child: Text(text,
+          style: const TextStyle(
+              fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black)),
+    );
+
+Future<void> pickProfileImage() async {
+  final result = await FilePicker.platform.pickFiles(type: FileType.image);
+  if (result != null) {
+    setState(() => profilePic = File(result.files.single.path!));
+  }
+}
+
+Future<void> pickCVFile() async {
+  final result = await FilePicker.platform
+      .pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
+  if (result != null) {
+    setState(() => cv = File(result.files.single.path!));
+  }
+}
+
+void addWorkExperience() {
+  setState(() {
+    workExperiences.add(
+        {"designation": "", "organization": "", "from": "", "to": "", "location": ""});
+  });
+}
+
+void removeWorkExperience(int index) {
+  setState(() => workExperiences.removeAt(index));
+}
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.white,
+    appBar: AppBar(
+      title: const Text("Professional profile",
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 18)),
+      centerTitle: false,
+      backgroundColor: Colors.white,
+      elevation: 0,
+    ),
+    body: isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Form(
+              key: formKey,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text(
+                  "Connect with the best hospitals and build your career.",
+                  style: TextStyle(color: Colors.black54, fontSize: 13),
+                ),
+
+                  titleText("Full Name"),
+                  TextFormField(controller: fullName, decoration: inputDecoration("Full name"), validator: (v)=> (v==null||v.isEmpty)?'Required':null),
+
+                  titleText("Phone number"),
+                  TextFormField(controller: phoneNumber, decoration: inputDecoration("Your number"), keyboardType: TextInputType.phone),
+
+                  titleText("Email"),
+                  TextFormField(controller: email, decoration: inputDecoration("Your email"), keyboardType: TextInputType.emailAddress),
+
+                  titleText("State"),
+                  TextFormField(controller: stateCtrl, decoration: inputDecoration("Your state")),
+                  titleText("District"),
+                  TextFormField(controller: districtCtrl, decoration: inputDecoration("Your district")),
+
+                  titleText("Your Profile Picture"),
+                  GestureDetector(
+                    onTap: pickProfileImage,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black12),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        children: [
+                          const Icon(Iconsax.image, color: Colors.black54, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            profilePic != null ? "Image selected ✅" : "Upload your image",
+                            style: TextStyle(color: profilePic != null ? Colors.green : Colors.black54),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  titleText("Degree"),
+                  TextFormField(controller: degree, decoration: inputDecoration("Your Degree")),
+
+                  titleText("Highest Degree (file)"),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['pdf','jpg','jpeg','png'],
+                      );
+                      if (picked != null) {
+                        setState(() => highestDegree = File(picked.files.single.path!));
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black12),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        children: [
+                          const Icon(Iconsax.document_upload, color: Colors.black54, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            highestDegree != null ? "Highest degree uploaded ✅" : "Upload highest degree (PDF/Image)",
+                            style: TextStyle(color: highestDegree != null ? Colors.green : Colors.black54),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  titleText("Speciality"),
+                  TextFormField(controller: speciality, decoration: inputDecoration("Your Speciality")),
+
+                  titleText("Sub-speciality"),
+                  TextFormField(controller: subSpeciality, decoration: inputDecoration("Your Sub-speciality")),
+
+                  titleText("Years of experience"),
+                  DropdownButtonFormField<String>(
+                    value: selectedYearsExperience,
+                    items: expOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    onChanged: (v) => setState(() => selectedYearsExperience = v),
+                    decoration: inputDecoration("Select years of experience"),
+                  ),
+
+                  titleText("Surgical experience"),
+                  DropdownButtonFormField<String>(
+                    value: selectedSurgicalExperience,
+                    items: expOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                    onChanged: (v) => setState(() => selectedSurgicalExperience = v),
+                    decoration: inputDecoration("Select surgical experience"),
+                  ),
+
+                  titleText("Summary profile"),
+                  TextFormField(controller: summary, maxLines: 4, decoration: inputDecoration("Tell about yourself")),
+
+                  titleText("Work experience"),
+                  ...workExperiences.asMap().entries.map((entry) {
+                    int index = entry.key;
+                    return Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: const BorderSide(color: Colors.black12)),
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            TextFormField(decoration: inputDecoration("Designation")),
+                            const SizedBox(height: 8),
+                            TextFormField(decoration: inputDecoration("Healthcare Organization")),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(child: TextFormField(decoration: inputDecoration("From (Year)"))),
+                                const SizedBox(width: 10),
+                                Expanded(child: TextFormField(decoration: inputDecoration("To (Year)"))),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            TextFormField(decoration: inputDecoration("Location")),
+                            if (workExperiences.length > 1)
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: IconButton(
+                                  icon: const Icon(Iconsax.trash, color: Colors.red),
+                                  onPressed: () => removeWorkExperience(index),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  TextButton.icon(
+                    onPressed: addWorkExperience,
+                    icon: const Icon(Iconsax.add_square, color: Colors.blueAccent),
+                    label: const Text("Add more work experience", style: TextStyle(color: Colors.blueAccent)),
+                  ),
+
+                  titleText("CV"),
+                  GestureDetector(
+                    onTap: pickCVFile,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black12),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        children: [
+                          const Icon(Iconsax.document_upload, color: Colors.black54, size: 20),
+                          const SizedBox(width: 10),
+                          Text(
+                            cv != null ? "CV uploaded ✅" : "Upload your CV in PDF",
+                            style: TextStyle(color: cv != null ? Colors.green : Colors.black54),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  titleText("Portfolio"),
+                  TextFormField(controller: portfolio, decoration: inputDecoration("URL links")),
+
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      TextFormField(
-                        controller: fullName,
-                        decoration: const InputDecoration(
-                          labelText: "Full Name",
+                      Checkbox(value: termsAccepted, onChanged: (v) => setState(() => termsAccepted = v!)),
+                      const Expanded(
+                        child: Text(
+                          "I agree to the terms and conditions and privacy policy of the application",
+                          style: TextStyle(fontSize: 12),
                         ),
-                        validator: (v) => v!.isEmpty ? "Enter name" : null,
-                      ),
-                      TextFormField(
-                        controller: speciality,
-                        decoration: const InputDecoration(
-                          labelText: "Speciality",
-                        ),
-                      ),
-                      TextFormField(
-                        controller: subSpeciality,
-                        decoration: const InputDecoration(
-                          labelText: "Sub Speciality",
-                        ),
-                      ),
-                      TextFormField(
-                        controller: degree,
-                        decoration: const InputDecoration(
-                          labelText: "Highest Degree",
-                        ),
-                      ),
-                      TextFormField(
-                        controller: experience,
-                        decoration: const InputDecoration(
-                          labelText: "Years of Experience",
-                        ),
-                        keyboardType: TextInputType.number,
-                      ),
-                      TextFormField(
-                        controller: surgicalExp,
-                        decoration: const InputDecoration(
-                          labelText: "Surgical Experience",
-                        ),
-                      ),
-                      TextFormField(
-                        controller: portfolio,
-                        decoration: const InputDecoration(
-                          labelText: "Portfolio Links",
-                        ),
-                      ),
-                      TextFormField(
-                        controller: summary,
-                        maxLines: 4,
-                        decoration: const InputDecoration(
-                          labelText: "Summary Profile",
-                        ),
-                      ),
-                      const SizedBox(height: 15),
-
-                      /// File Uploads
-                      fileTile(
-                        "Profile Picture",
-                        profilePic,
-                        () => pickFile(["jpg", "jpeg", "png"]),
-                      ),
-                      fileTile("CV", cv, () => pickFile(["pdf", "doc"])),
-                      fileTile(
-                        "Highest Degree",
-                        highestDegree,
-                        () => pickFile(["jpg", "png", "pdf"]),
-                      ),
-                      fileTile(
-                        "Upload LogBook",
-                        logBook,
-                        () => pickFile(["jpg", "png", "pdf"]),
-                      ),
-
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: hasProfile ? updateProfile : createProfile,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
-                        ),
-                        child: Text(hasProfile ? "Update Profile" : "Create Profile"),
-                      ),
+                      )
                     ],
                   ),
-                ),
+
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: hasProfile ? updateProfile : createProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.lightBlueAccent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(
+                        hasProfile ? "Update" : "Submit",
+                        style: const TextStyle(color: Colors.white, fontSize: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ]),
               ),
             ),
     );
