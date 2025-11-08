@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 class ApiService {
   static const String baseUrl =
       'https://surgeon-search.onrender.com/api/surgeon';
+  static const String healthcareBase =
+      'https://surgeon-search.onrender.com/api/healthcare';
 
   static Future<Map<String, dynamic>> createProfile({
     required String fullName,
@@ -19,8 +21,15 @@ class ApiService {
     required String profileId,
     required String portfolioLinks,
     required List<Map<String, dynamic>> workExperience,
+    required List<String> departmentsAvailable,
+    String yearsOfExperience = '',
+    String surgicalExperience = '',
+    String state = '',
+    String district = '',
     File? imageFile,
     File? cvFile,
+    File? highestDegreeFile,
+    File? logBookFile,
   }) async {
     try {
       var uri = Uri.parse('$baseUrl/create-profile');
@@ -38,6 +47,14 @@ class ApiService {
       request.fields['termsAccepted'] = termsAccepted.toString();
       request.fields['profile_id'] = profileId;
       request.fields['portfolioLinks'] = portfolioLinks;
+      if (yearsOfExperience.isNotEmpty) {
+        request.fields['yearsOfExperience'] = yearsOfExperience;
+      }
+      if (surgicalExperience.isNotEmpty) {
+        request.fields['surgicalExperience'] = surgicalExperience;
+      }
+      if (state.isNotEmpty) request.fields['state'] = state;
+      if (district.isNotEmpty) request.fields['district'] = district;
 
       // ✅ Add workExperience like array indices
       for (int i = 0; i < workExperience.length; i++) {
@@ -51,6 +68,11 @@ class ApiService {
         request.fields['workExperience[$i][location]'] = exp['location'] ?? '';
       }
 
+      // ✅ Add departmentsAvailable like array indices
+      for (int i = 0; i < departmentsAvailable.length; i++) {
+        request.fields['departmentsAvailable[$i]'] = departmentsAvailable[i];
+      }
+
       // ✅ Attach files
       if (imageFile != null) {
         request.files.add(
@@ -60,6 +82,18 @@ class ApiService {
 
       if (cvFile != null) {
         request.files.add(await http.MultipartFile.fromPath('cv', cvFile.path));
+      }
+
+      if (highestDegreeFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('highestDegree', highestDegreeFile.path),
+        );
+      }
+
+      if (logBookFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('uploadLogBook', logBookFile.path),
+        );
       }
 
       // ✅ Send request
@@ -75,6 +109,76 @@ class ApiService {
         final err = jsonDecode(response.body);
         return {'success': false, 'message': err['message'] ?? 'Server error'};
       }
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  /// ---------------------------------------------------------
+  /// Healthcare APIs
+  /// ---------------------------------------------------------
+  static Future<Map<String, dynamic>> addHealthcareProfile({
+    required String healthcareId,
+    required String hospitalName,
+    required String phoneNumber,
+    required String email,
+    required String location,
+    required String hospitalType,
+    required List<String> departmentsAvailable,
+    required String hospitalOverview,
+    required Map<String, String> hrContact,
+    required String hospitalWebsite,
+    required bool termsAccepted,
+    File? logoFile,
+  }) async {
+    try {
+      final uri = Uri.parse('$healthcareBase/add');
+      final req = http.MultipartRequest('POST', uri);
+
+      req.fields.addAll({
+        'hospitalName': hospitalName,
+        'phoneNumber': phoneNumber,
+        'email': email,
+        'location': location,
+        'hospitalType': hospitalType,
+        'hospitalOverview': hospitalOverview,
+        'hrContact[fullName]': hrContact['fullName'] ?? '',
+        'hrContact[designation]': hrContact['designation'] ?? '',
+        'hrContact[mobileNumber]': hrContact['mobileNumber'] ?? '',
+        'hrContact[email]': hrContact['email'] ?? '',
+        'hospitalWebsite': hospitalWebsite,
+        'termsAccepted': termsAccepted.toString(),
+        'healthcare_id': healthcareId,
+      });
+
+      for (int i = 0; i < departmentsAvailable.length; i++) {
+        req.fields['departmentsAvailable[$i]'] = departmentsAvailable[i];
+      }
+
+      if (logoFile != null) {
+        req.files.add(await http.MultipartFile.fromPath('hospitalLogo', logoFile.path));
+      }
+
+      final streamed = await req.send();
+      final res = await http.Response.fromStream(streamed);
+
+      if (res.statusCode == 200 || res.statusCode == 201) {
+        return {'success': true, 'data': jsonDecode(res.body)};
+      }
+      return {'success': false, 'message': res.body};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
+
+  static Future<Map<String, dynamic>> fetchHealthcareProfile(String healthcareId) async {
+    try {
+      final url = Uri.parse('$healthcareBase/healthcare-profile/$healthcareId');
+      final res = await http.get(url);
+      if (res.statusCode == 200) {
+        return {'success': true, 'data': jsonDecode(res.body)};
+      }
+      return {'success': false, 'message': res.body};
     } catch (e) {
       return {'success': false, 'message': e.toString()};
     }

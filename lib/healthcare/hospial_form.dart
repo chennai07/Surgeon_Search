@@ -4,13 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:doc/model/api_service.dart';
+import 'package:doc/healthcare/hospital_profile.dart';
 
 class HospitalForm extends StatefulWidget {
-  const HospitalForm({super.key});
+  final String healthcareId;
+  const HospitalForm({super.key, required this.healthcareId});
 
   @override
   State<HospitalForm> createState() => _HospitalFormState();
 }
+
+ 
 
 class _HospitalFormState extends State<HospitalForm> {
   final _formKey = GlobalKey<FormState>();
@@ -43,13 +48,15 @@ class _HospitalFormState extends State<HospitalForm> {
   final List<String> departments = [
     "Cardiology",
     "Orthopedics",
-    "Surgical oncology",
+    "Surgical Oncology",
     "Neurosurgery",
-    "Pediatric surgery",
+    "Pediatric Surgery",
     "Urology",
-    "Gastroenterology",
-    "Dermatology",
+    "General Medicine",
     "ENT",
+    "Dermatology",
+    "Radiology",
+    "Gastroenterology",
   ];
 
   final List<String> selectedDepartments = [];
@@ -72,75 +79,43 @@ class _HospitalFormState extends State<HospitalForm> {
       return;
     }
 
-    // ✅ Show success popup
-    Get.dialog(
-      Center(
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.7, end: 1.0),
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeOutBack,
-          builder: (context, scale, child) {
-            return Transform.scale(scale: scale, child: child);
-          },
-          child: Container(
-            width: 240,
-            padding: const EdgeInsets.all(25),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  height: 90,
-                  width: 90,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.blue.shade50,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: Colors.blue,
-                    size: 60,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  "Profile Submitted!",
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Your hospital profile has been successfully saved.",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.blue[700],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-      barrierDismissible: false,
+    // Submit to backend
+    final res = await ApiService.addHealthcareProfile(
+      healthcareId: widget.healthcareId,
+      hospitalName: hospitalNameController.text.trim(),
+      phoneNumber: phoneController.text.trim(),
+      email: emailController.text.trim(),
+      location: locationController.text.trim(),
+      hospitalType: selectedHospitalType ?? '',
+      departmentsAvailable: List<String>.from(selectedDepartments),
+      hospitalOverview: overviewController.text.trim(),
+      hrContact: {
+        'fullName': hrNameController.text.trim(),
+        'designation': hrDesignationController.text.trim(),
+        'mobileNumber': hrMobileController.text.trim(),
+        'email': hrEmailController.text.trim(),
+      },
+      hospitalWebsite: websiteController.text.trim(),
+      termsAccepted: agreeTerms,
+      logoFile: hospitalLogo,
     );
 
-    await Future.delayed(const Duration(seconds: 2));
-    Get.back();
-    Navigator.pop(context);
+    if (res['success'] == true) {
+      // Fetch profile and show
+      final prof = await ApiService.fetchHealthcareProfile(widget.healthcareId);
+      if (prof['success'] == true) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const HospitalProfile(),
+          ),
+        );
+      } else {
+        Get.snackbar('Profile', 'Created, but failed to fetch profile');
+      }
+    } else {
+      Get.snackbar('Submit Failed', res['message']?.toString() ?? 'Error');
+    }
   }
 
   @override

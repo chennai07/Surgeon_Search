@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart';
+import 'package:path/path.dart' as p;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:doc/model/api_service.dart';
 
@@ -19,6 +19,35 @@ class SurgeonForm extends StatefulWidget {
 
   @override
   State<SurgeonForm> createState() => _SurgeonFormState();
+}
+
+class SurgeonProfileView extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const SurgeonProfileView({super.key, required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+    final profile = d is Map && d['data'] != null ? d['data'] : d;
+    final p = profile is Map && profile['profile'] != null ? profile['profile'] : profile;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Surgeon Profile')),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: ListView(
+          children: [
+            Text('Full Name: ${p['fullName'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('Speciality: ${p['speciality'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('Degree: ${p['degree'] ?? ''}'),
+            const SizedBox(height: 8),
+            Text('Experience: ${p['yearsOfExperience'] ?? ''}'),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _SurgeonFormState extends State<SurgeonForm> {
@@ -121,7 +150,7 @@ class _SurgeonFormState extends State<SurgeonForm> {
         await http.MultipartFile.fromPath(
           "profilePicture",
           profilePic!.path,
-          filename: basename(profilePic!.path),
+          filename: p.basename(profilePic!.path),
         ),
       );
     }
@@ -130,7 +159,7 @@ class _SurgeonFormState extends State<SurgeonForm> {
         await http.MultipartFile.fromPath(
           "cv",
           cv!.path,
-          filename: basename(cv!.path),
+          filename: p.basename(cv!.path),
         ),
       );
     }
@@ -139,7 +168,7 @@ class _SurgeonFormState extends State<SurgeonForm> {
         await http.MultipartFile.fromPath(
           "highestDegree",
           highestDegree!.path,
-          filename: basename(highestDegree!.path),
+          filename: p.basename(highestDegree!.path),
         ),
       );
     }
@@ -148,7 +177,7 @@ class _SurgeonFormState extends State<SurgeonForm> {
         await http.MultipartFile.fromPath(
           "uploadLogBook",
           logBook!.path,
-          filename: basename(logBook!.path),
+          filename: p.basename(logBook!.path),
         ),
       );
     }
@@ -158,7 +187,17 @@ class _SurgeonFormState extends State<SurgeonForm> {
  
     if (res.statusCode == 200) {
       Get.snackbar("✅ Success", "Profile Updated Successfully");
-      Get.back(); // return to profile view
+      final prof = await ApiService.fetchProfileInfo(widget.profileId);
+      if (prof['success'] == true) {
+        final data = prof['data'];
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => SurgeonProfileView(data: data)),
+        );
+      } else {
+        Get.snackbar("Profile", "Updated, but failed to fetch profile");
+      }
     } else {
       Get.snackbar("❌ Update Failed", msg);
     }
@@ -184,6 +223,7 @@ class _SurgeonFormState extends State<SurgeonForm> {
       profileId: widget.profileId,
       portfolioLinks: portfolio.text,
       workExperience: const [],
+      departmentsAvailable: const [],
       imageFile: profilePic,
       cvFile: cv,
     );
@@ -191,6 +231,15 @@ class _SurgeonFormState extends State<SurgeonForm> {
     if (result['success'] == true) {
       hasProfile = true;
       Get.snackbar("✅ Success", "Profile Created Successfully");
+      final prof = await ApiService.fetchProfileInfo(widget.profileId);
+      if (prof['success'] == true) {
+        final data = prof['data'];
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => SurgeonProfileView(data: data)),
+        );
+      }
     } else {
       Get.snackbar("❌ Create Failed", result['message']?.toString() ?? 'Error');
     }
@@ -209,7 +258,7 @@ class _SurgeonFormState extends State<SurgeonForm> {
             final f = await pick();
             if (f != null) setState(() => file = f);
           },
-          child: Text(file == null ? "Choose File" : basename(file.path)),
+          child: Text(file == null ? "Choose File" : p.basename(file.path)),
         ),
         const SizedBox(height: 10),
       ],

@@ -36,9 +36,10 @@ class _SplashScreenState extends State<SplashScreen> {
       debugPrint('✅ User already logged in. Role: $role');
 
       if (role.contains('hospital') || role.contains('health') || role.contains('org')) {
+        final hid = (await SessionManager.getHealthcareId()) ?? profileId;
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const HospitalForm()),
+          MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: hid)),
         );
       } else if (role.contains('surgeon') || role.contains('doctor')) {
         Navigator.pushReplacement(

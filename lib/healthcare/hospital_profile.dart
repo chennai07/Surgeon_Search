@@ -28,7 +28,7 @@ class HospitalProfile extends StatelessWidget {
           children: [
             // ✅ Hospital Logo
             Center(
-              child: Image.asset('assets/images/apollo_logo.png', height: 100),
+              child: Image.asset('assets/logo2.png', height: 100),
             ),
             const SizedBox(height: 10),
 
@@ -238,7 +238,7 @@ class HospitalProfile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Image.asset(
-                'assets/images/apollo_logo.png',
+                'assets/logo2.png',
                 height: 40,
                 width: 40,
               ),

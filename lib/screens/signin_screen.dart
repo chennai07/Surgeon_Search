@@ -198,9 +198,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final rl = (role ?? '').toLowerCase().trim();
         if (rl.contains('hospital') || rl.contains('health') || rl.contains('org')) {
+          // For hospital users, _id maps to healthcare_id
+          await SessionManager.saveHealthcareId(profileId);
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const HospitalForm()),
+            MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: profileId)),
           );
         } else if (rl.contains('surgeon') || rl.contains('doctor')) {
           Navigator.pushReplacement(

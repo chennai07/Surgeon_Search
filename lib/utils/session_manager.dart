@@ -13,6 +13,7 @@ class SessionManager {
   static const _keyToken = 'auth_token';
   static const _keyLoginId = 'login_id';
   static const _keyRole = 'user_role';
+  static const _keyHealthcareId = 'healthcare_id';
 
   /// ✅ Save the logged-in user's ID
   static Future<void> saveUserId(String userId) async {
@@ -24,6 +25,11 @@ class SessionManager {
   static Future<void> saveProfileId(String profileId) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyProfileId, profileId);
+  }
+
+  static Future<void> saveHealthcareId(String healthcareId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyHealthcareId, healthcareId);
   }
 
   /// ✅ Save auth token (for API authorization)
@@ -48,6 +54,11 @@ class SessionManager {
   static Future<String?> getProfileId() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyProfileId);
+  }
+
+  static Future<String?> getHealthcareId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyHealthcareId);
   }
 
   /// ✅ Retrieve stored token
@@ -78,6 +89,7 @@ class SessionManager {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUserId);
     await prefs.remove(_keyProfileId);
+    await prefs.remove(_keyHealthcareId);
     await prefs.remove(_keyToken);
     await prefs.remove(_keyLoginId);
     await prefs.remove(_keyRole);
