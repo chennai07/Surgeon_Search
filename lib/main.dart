@@ -1,9 +1,11 @@
-import 'package:doc/profileprofile/professional_profile_page.dart';
-import 'package:doc/screens/signin_screen.dart';
-import 'package:flutter/material.dart';
 import 'package:doc/screens/splash_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:doc/screens/signin_screen.dart';
+import 'package:doc/utils/session_manager.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MyApp());
 }
 
@@ -12,20 +14,11 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Surgeon Search',
       theme: ThemeData(primarySwatch: Colors.blue),
-
-      // ✅ Initial route
-      initialRoute: '/',
-
-      // ✅ Routes table
-      routes: {
-        '/': (context) => const SplashScreen(),
-        '/login': (context) => const LoginScreen(),
-        '/profile': (context) => const ProfessionalProfileFormPage(),
-      },
+      home: const SplashScreen(), // <-- Handle login check here
     );
   }
 }

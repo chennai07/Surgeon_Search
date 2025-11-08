@@ -1,12 +1,14 @@
 import 'dart:convert';
-import 'package:doc/profileprofile/professional_profile_page.dart';
-import 'package:doc/screens/signup_screen.dart';
-import 'package:doc/utils/session_manager.dart';
+import 'package:doc/healthcare/hospial_profile.dart';
+import 'package:doc/profileprofile/profile.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:iconsax/iconsax.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart'; // For generating unique IDs
+import 'package:uuid/uuid.dart';
+import 'package:doc/utils/session_manager.dart';
+import 'package:doc/screens/signup_screen.dart';
+import 'package:doc/profileprofile/professional_profile_page.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -83,21 +85,19 @@ class _LoginScreenState extends State<LoginScreen> {
     _prewarmServer();
   }
 
-  /// 🌐 Prewarm the backend server to avoid first-time delay
+  /// 🌐 Wake up backend (Render) to prevent cold start delay
   Future<void> _prewarmServer() async {
     try {
-      final stopwatch = Stopwatch()..start();
       await http
           .get(Uri.parse('https://surgeon-search.onrender.com/api/ping'))
           .timeout(const Duration(seconds: 5));
-      stopwatch.stop();
-      print('🌐 Server awake in ${stopwatch.elapsedMilliseconds} ms');
-    } catch (e) {
-      print('⚠️ Prewarm failed: $e');
+      debugPrint('✅ Server is awake');
+    } catch (_) {
+      debugPrint('⚠️ Could not prewarm server.');
     }
   }
 
-  /// ✅ LOGIN FUNCTION (with unique local ID + token storage)
+  /// ✅ LOGIN FUNCTION
   Future<void> _signIn() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -113,8 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     final url = Uri.parse('https://surgeon-search.onrender.com/api/signin');
-    final prefs = await SharedPreferences.getInstance();
-    final uuid = Uuid();
+    const uuid = Uuid();
 
     try {
       final response = await http
@@ -123,60 +122,56 @@ class _LoginScreenState extends State<LoginScreen> {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'email': email, 'password': password}),
           )
-          .timeout(
-            const Duration(seconds: 12),
-            onTimeout: () =>
-                throw Exception('Server timeout. Please try again.'),
-          );
+          .timeout(const Duration(seconds: 12));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('✅ Login successful. Response: $data');
+        debugPrint(' Login successful: $data');
 
         final token = data['token'];
         final userData = data['user'] ?? data['profile'] ?? data;
-        final profileId = _extractProfileId(userData) ??
+
+        // Extract or create profile ID (prefer deep extraction, fallback to fields/uuid)
+        final extractedProfileId = _extractProfileId(userData) ??
             _extractProfileId(data['profile']) ??
             _extractProfileId(data);
+        String profileId =
+            ((extractedProfileId ??
+                        userData['_id']?.toString() ??
+                        userData['profile_id']?.toString() ??
+                        userData['id']?.toString() ??
+                        '') as String)
+                    .trim();
+        if (profileId.isEmpty) profileId = uuid.v4();
 
-        // Generate unique local login ID (not sent to API)
-        final newLoginId = uuid.v4();
-        await prefs.setString('login_id', newLoginId);
-        print('🆕 Generated local login ID: $newLoginId');
+        // Save session
+        await SessionManager.saveUserId(profileId);
+        await SessionManager.saveToken(token ?? '');
 
-        // Save user info (shared helper)
-        await saveLoginInfo(profileId, token?.toString() ?? '');
-
-        // Also save profileId specifically for use in profile forms
-        if (profileId != null) {
-          await prefs.setString('profile_id', profileId);
-          print('💾 Profile ID saved for profile forms: $profileId');
-        } else {
-          print('⚠️ No profile ID present in login response.');
-        }
-
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('✅ Login Successful!')));
+        ).showSnackBar(const SnackBar(content: Text(' Login Successful!')));
 
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const ProfessionalProfileFormPage(),
-            ),
-          );
-        }
-      } else {
-        final error = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('❌ ${error['message'] ?? 'Invalid credentials'}'),
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfessionalProfileViewPage(profileId: profileId),
           ),
         );
+      } else {
+        String message = 'Invalid credentials';
+        try {
+          final error = jsonDecode(response.body);
+          if (error is Map && error['message'] != null) {
+            message = error['message'];
+          }
+        } catch (_) {}
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('❌ $message')));
       }
     } catch (e) {
-      print('⚠️ Exception during login: $e');
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('⚠️ Error: $e')));
@@ -185,39 +180,38 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// 🚪 LOGOUT FUNCTION — Deletes local login ID and stored user data
-  Future<void> _logoutUser() async {
-    await logout();
+  /// ✅ ROLE-BASED REDIRECT FUNCTION (added safely)
+  Future<void> handleLogin() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? role = prefs.getString('user_role');
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('🚪 Logged out successfully.')),
-    );
-
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
+    if (role == 'health_organization') {
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (_) => false,
+        MaterialPageRoute(builder: (_) => const HealthcareOrganizations()),
+      );
+    } else if (role == 'sajan') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const EditProfessionalProfilePage(
+            profileId: '',
+            existingData: {},
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unknown role, please sign up again.')),
       );
     }
   }
 
-  /// 🧠 CHECK LOGIN STATUS — used in splash or auto-login scenarios
-  Future<void> _checkLoginStatus() async {
-    final loginInfo = await getLoginInfo();
-    if (loginInfo['userId'] != null && loginInfo['token'] != null) {
-      print('✅ Already logged in. UserID: ${loginInfo['userId']}');
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const ProfessionalProfileFormPage(),
-          ),
-        );
-      }
-    } else {
-      print('⚠️ No active session found. Redirecting to login.');
-    }
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -252,9 +246,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(child: Image.asset('assets/logo2.png', height: 150)),
                   const SizedBox(height: 60),
 
-                  // ✅ Email Input
+                  // 📨 Email Field
                   TextField(
                     controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       prefixIcon: const Icon(Iconsax.sms, size: 20),
                       hintText: 'Your email',
@@ -272,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // ✅ Password Input
+                  // 🔒 Password Field
                   TextField(
                     controller: _passwordController,
                     obscureText: _obscureText,
@@ -300,67 +295,74 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 30),
 
-                  // ✅ Sign In Button
+                  // 🔘 Sign In Button
                   SizedBox(
                     width: double.infinity,
                     height: 55,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFB3E5FC),
+                        backgroundColor: Colors.blueAccent,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                         elevation: 0,
                       ),
                       onPressed: _isLoading ? null : _signIn,
-                      child: const Text(
-                        'Sign In',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 16,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 16,
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // ✅ Sign Up Navigation
-                  Center(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          "Don’t have an account?",
-                          style: TextStyle(color: Colors.black87, fontSize: 14),
-                        ),
-                        const SizedBox(width: 6),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const SignUpScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Sign Up',
-                            style: TextStyle(
-                              color: Color(0xFF003366),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
+                  // 🔗 Sign Up Link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "Don’t have an account?",
+                        style: TextStyle(color: Colors.black87, fontSize: 14),
+                      ),
+                      const SizedBox(width: 6),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SignUpScreen(),
                             ),
+                          );
+                        },
+                        child: const Text(
+                          'Sign Up',
+                          style: TextStyle(
+                            color: Color(0xFF003366),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // 🌀 Loading overlay
+            // ⏳ Loading Overlay
             if (_isLoading)
               Container(
                 color: Colors.black.withOpacity(0.4),
