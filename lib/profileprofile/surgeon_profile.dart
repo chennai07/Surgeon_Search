@@ -102,14 +102,25 @@ class _ProfessionalProfileViewPageState
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        title: const Text(
+          "Doctor Profile",
+          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
+        ),
         backgroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.black),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text("Doctor Profile", style: TextStyle(color: Colors.black)),
-        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Iconsax.logout, color: Colors.redAccent),
+            onPressed: _logout,
+            tooltip: 'Logout',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -117,70 +128,162 @@ class _ProfessionalProfileViewPageState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
+              child: CircleAvatar(
+                radius: 60,
+                backgroundColor: Colors.blueAccent.withOpacity(0.1),
+                child: const Icon(Iconsax.user, size: 50, color: Colors.grey),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Center(
               child: Column(
                 children: [
-                  const CircleAvatar(
-                    radius: 45,
-                    backgroundImage: AssetImage("assets/profile.png"),
-                    child: Icon(Icons.person, size: 60, color: Colors.grey),
+                  Text(
+                    _profile!.name.isNotEmpty
+                        ? _profile!.name
+                        : 'Surgeon Name',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  Text(_profile!.name,
-                      style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.black)),
-                  Text(_profile!.speciality,
-                      style: const TextStyle(
-                          color: Colors.blueAccent,
-                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Text(
+                    _profile!.speciality.isNotEmpty
+                        ? _profile!.speciality
+                        : 'Speciality not provided',
+                    style: const TextStyle(
+                      color: Colors.black54,
+                      fontSize: 16,
+                    ),
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-
-            const Text("About", style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text(_profile!.summary.isNotEmpty ? _profile!.summary : "No summary available", 
-                style: const TextStyle(height: 1.4)),
-
             const SizedBox(height: 20),
             const Divider(),
 
-            const Text("Education", style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text("${_profile!.degree}${_profile!.subSpeciality.isNotEmpty ? ' - ${_profile!.subSpeciality}' : ''}",
-                style: const TextStyle(color: Colors.black87)),
+            _infoHeader("Personal Information"),
+            _infoTile(Iconsax.call, "Phone", _profile!.phone),
+            _infoTile(Iconsax.sms, "Email", _profile!.email),
+            _infoTile(Iconsax.location, "Location", _profile!.location),
 
-            const SizedBox(height: 20),
-            const Divider(),
+            const SizedBox(height: 10),
+            _infoHeader("Professional Details"),
+            _infoTile(Iconsax.book, "Degree", _profile!.degree),
+            _infoTile(
+                Iconsax.activity, "Sub-Speciality", _profile!.subSpeciality),
+            _infoTile(Iconsax.hospital, "Organization", _profile!.organization),
+            _infoTile(Iconsax.briefcase, "Designation", _profile!.designation),
+            _infoTile(Iconsax.location, "Work Location", _profile!.workLocation),
+            _infoTile(Iconsax.calendar, "Experience", _profile!.period),
+            _infoTile(Iconsax.link, "Portfolio", _profile!.portfolio),
 
-            const Text("Experience", style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            if (_profile!.designation.isNotEmpty && _profile!.organization.isNotEmpty) ...[
-              Text("${_profile!.designation} at ${_profile!.organization}",
-                  style: const TextStyle(color: Colors.black87)),
-              if (_profile!.period.isNotEmpty || _profile!.workLocation.isNotEmpty)
-                Text("${_profile!.period}${_profile!.workLocation.isNotEmpty ? ' | ${_profile!.workLocation}' : ''}",
-                    style: const TextStyle(color: Colors.grey)),
-            ] else
-              const Text("No work experience added", style: TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            _infoHeader("Summary"),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Text(
+                _profile!.summary.isNotEmpty
+                    ? _profile!.summary
+                    : "No summary provided",
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: Colors.black87,
+                  height: 1.4,
+                ),
+              ),
+            ),
 
-            const SizedBox(height: 20),
-            const Divider(),
+            const SizedBox(height: 30),
 
-            const Text("Contact", style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            if (_profile!.phone.isNotEmpty) Text("📞 ${_profile!.phone}"),
-            if (_profile!.email.isNotEmpty) Text("✉️ ${_profile!.email}"),
-            if (_profile!.location.isNotEmpty) Text("📍 ${_profile!.location}"),
-
-            const SizedBox(height: 20),
-            if (_profile!.portfolio.isNotEmpty)
-              Text("🔗 Portfolio: ${_profile!.portfolio}",
-                  style: const TextStyle(color: Colors.blueAccent)),
+            Center(
+              child: ElevatedButton.icon(
+                onPressed: _logout,
+                icon: const Icon(Iconsax.logout, color: Colors.white),
+                label: const Text(
+                  "Logout",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 14,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
           ],
         ),
+      ),
+    );
+  }
+
+  //  Section Header Widget
+  Widget _infoHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+          color: Colors.blueAccent,
+        ),
+      ),
+    );
+  }
+
+  // Info Row Widget
+  Widget _infoTile(IconData icon, String label, String? value) {
+    if (value == null || value.isEmpty) return const SizedBox();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 20, color: Colors.blueAccent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.black54,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Colors.black87,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

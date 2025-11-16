@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:doc/healthcare/hospial_form.dart';
 import 'package:doc/healthcare/hospital_profile.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
+import 'package:doc/profileprofile/surgeon_profile.dart';
+import 'package:doc/model/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:iconsax/iconsax.dart';
@@ -243,15 +245,64 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else if (rl.contains('surgeon') || rl.contains('doctor')) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SurgeonForm(
-                profileId: profileId,
-                existingData: const {},
+          try {
+            final res = await ApiService.fetchProfileInfo(profileId);
+            if (res['success'] == true) {
+              final body = res['data'];
+              final data = body is Map && body['data'] != null ? body['data'] : body;
+              final p = data is Map && data['profile'] != null ? data['profile'] : data;
+
+              final hasValidProfile = p is Map &&
+                  (((p['fullName'] ?? p['fullname'] ?? '')
+                              .toString()
+                              .trim()
+                              .isNotEmpty ==
+                          true) ||
+                      (p['email']?.toString().trim().isNotEmpty == true) ||
+                      (p['phoneNumber']?.toString().trim().isNotEmpty == true));
+
+              if (hasValidProfile) {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProfessionalProfileViewPage(
+                      profileId: profileId,
+                    ),
+                  ),
+                );
+              } else {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SurgeonForm(
+                      profileId: profileId,
+                      existingData: const {},
+                    ),
+                  ),
+                );
+              }
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SurgeonForm(
+                    profileId: profileId,
+                    existingData: const {},
+                  ),
+                ),
+              );
+            }
+          } catch (_) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SurgeonForm(
+                  profileId: profileId,
+                  existingData: const {},
+                ),
               ),
-            ),
-          );
+            );
+          }
         } else {
           // Default to Surgeon profile flow if role is unknown
           Navigator.pushReplacement(
