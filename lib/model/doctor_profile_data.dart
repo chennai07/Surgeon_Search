@@ -55,7 +55,11 @@ class DoctorProfileData {
     return DoctorProfileData(
       name: profileData['fullName']?.toString() ?? profileData['fullname']?.toString() ?? '',
       speciality: profileData['speciality']?.toString() ?? '',
-      summary: profileData['summaryProfile']?.toString() ?? '',
+      summary: profileData['summaryProfile']?.toString() ??
+          profileData['summary']?.toString() ??
+          profileData['summary_profile']?.toString() ??
+          profileData['about']?.toString() ??
+          '',
       degree: profileData['degree']?.toString() ?? '',
       subSpeciality: profileData['subSpeciality']?.toString() ?? '',
       designation: designation,
