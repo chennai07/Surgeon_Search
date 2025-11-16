@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:doc/model/doctor_profile_data.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/screens/signin_screen.dart';
+import 'package:doc/homescreen/SearchjobScreen.dart';
 
 class ProfessionalProfileViewPage extends StatefulWidget {
   final String profileId;
@@ -231,6 +233,49 @@ class _ProfessionalProfileViewPageState
           ],
         ),
       ),
+
+      // Bottom Navigation Bar (same style as HospitalProfile)
+      bottomNavigationBar: Container(
+        height: 65,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _bottomNavItem(
+              Iconsax.search_normal,
+              "Search",
+              false,
+              () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SearchScreen(),
+                  ),
+                );
+              },
+            ),
+            _bottomNavItem(
+              Iconsax.document,
+              "Applied Jobs",
+              false,
+              () {
+                // TODO: navigate to applied jobs screen when available
+              },
+            ),
+            _bottomNavItem(
+              Iconsax.user,
+              "Profile",
+              true,
+              () {
+                // Already on profile; no action
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -281,6 +326,29 @@ class _ProfessionalProfileViewPageState
                   ),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Bottom Navigation Item (same visual style, but tappable)
+  Widget _bottomNavItem(
+      IconData icon, String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: isActive ? Colors.blue : Colors.grey, size: 22),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              color: isActive ? Colors.blue : Colors.grey,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
         ],
