@@ -6,6 +6,7 @@ import 'package:doc/model/api_service.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/homescreen/SearchjobScreen.dart';
+import 'package:doc/homescreen/Applied_Jobs.dart';
 
 class ProfessionalProfileViewPage extends StatefulWidget {
   final String profileId;
@@ -262,7 +263,12 @@ class _ProfessionalProfileViewPageState
               "Applied Jobs",
               false,
               () {
-                // TODO: navigate to applied jobs screen when available
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const AppliedJobsScreen(),
+                  ),
+                );
               },
             ),
             _bottomNavItem(

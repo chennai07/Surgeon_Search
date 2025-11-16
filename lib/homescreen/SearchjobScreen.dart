@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:doc/profileprofile/surgeon_profile.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/homescreen/job_details_screen.dart';
+import 'package:doc/homescreen/Applied_Jobs.dart';
 import '../utils/colors.dart';
 import '../widgets/job_card.dart';
 import '../widgets/section_header.dart';
@@ -359,7 +360,12 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             _bottomNavItem(Iconsax.search_normal, "Search", true, () {}),
             _bottomNavItem(Iconsax.document, "Applied Jobs", false, () {
-              // TODO: navigate to applied jobs when screen is available
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const AppliedJobsScreen(),
+                ),
+              );
             }),
             _bottomNavItem(Iconsax.user, "Profile", false, () async {
               final profileId = await SessionManager.getProfileId();
