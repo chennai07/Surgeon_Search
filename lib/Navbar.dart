@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:doc/healthcare/hospital_profile.dart';
+import 'package:doc/hospital/myJobsPage.dart';
 
 class Navbar extends StatefulWidget {
   final Map<String, dynamic> hospitalData;
@@ -24,7 +25,9 @@ class _NavbarState extends State<Navbar> {
         showBottomBar: false,
       ),
       const ApplicantsPage(),
-      const MyJobsPage(),
+      MyJobsPage(
+        onHospitalNameTap: () => onTabSelected(0),
+      ),
       const ScheduleInterviewPage(),
     ];
   }
@@ -45,7 +48,7 @@ class _NavbarState extends State<Navbar> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _navItem(index: 0, icon: Icons.home, label: "Profile"),
+            _navItem(index: 0, icon: Icons.bookmark, label: "My Jobs"),
             _navItem(index: 1, icon: Icons.group, label: "Applicants"),
             _navItem(index: 2, icon: Icons.add, label: "Post Job"),
             _navItem(index: 3, icon: Icons.calendar_month, label: "Interviews"),
@@ -100,23 +103,6 @@ class ApplicantsPage extends StatelessWidget {
       body: Center(
         child: Text(
           'Applicants screen coming soon',
-          style: TextStyle(fontSize: 16),
-        ),
-      ),
-    );
-  }
-}
-
-class MyJobsPage extends StatelessWidget {
-  const MyJobsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Text(
-          'My Jobs screen coming soon',
           style: TextStyle(fontSize: 16),
         ),
       ),
