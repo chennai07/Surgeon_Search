@@ -22,20 +22,35 @@ class HospitalProfile extends StatelessWidget {
         elevation: 0,
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Iconsax.logout, color: Colors.black),
-          onPressed: () async {
-            await SessionManager.clearAll();
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-              (route) => false,
-            );
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context);
           },
         ),
         title: Text(
-          "Back",
+          "Hospital Profile",
           style: GoogleFonts.poppins(color: Colors.black, fontSize: 15),
         ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await SessionManager.clearAll();
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+            child: Text(
+              "Logout",
+              style: GoogleFonts.poppins(
+                color: Colors.red,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/hospital/applicantcard.dart';
+import 'package:doc/hospital/JobDetailsScreen.dart';
 
 class MyJobsPage extends StatefulWidget {
   final VoidCallback? onHospitalNameTap;
@@ -81,6 +82,14 @@ class _MyJobsPageState extends State<MyJobsPage> {
         if (!mounted) return;
         setState(() {
           _jobs = jobs;
+          _isLoading = false;
+        });
+      } else if (response.statusCode == 404) {
+        // No jobs found for this healthcare id – treat as empty list, not an error
+        if (!mounted) return;
+        setState(() {
+          _jobs = [];
+          _error = null;
           _isLoading = false;
         });
       } else {
@@ -314,6 +323,82 @@ class _MyJobsPageState extends State<MyJobsPage> {
     );
   }
 
+  Future<void> _viewApplicantsForJob(Map<String, dynamic> job) async {
+    final rawId = job['_id'] ?? job['id'] ?? '';
+    final jobId = rawId.toString();
+    if (jobId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Job id not found for this listing.')),
+      );
+      return;
+    }
+
+    try {
+      final uri = Uri.parse(
+        'http://13.203.67.154:3000/api/jobs/applied-jobs/specific-jobs/$jobId',
+      );
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final body = response.body.trimLeft();
+        dynamic decoded;
+        try {
+          decoded = jsonDecode(body);
+        } catch (_) {
+          decoded = [];
+        }
+
+        final data = decoded is Map && decoded['data'] != null
+            ? decoded['data']
+            : decoded;
+        final list = data is List
+            ? data
+            : (data is Map && data['applications'] is List
+                ? data['applications']
+                : <dynamic>[]);
+
+        final applicants = <Map<String, dynamic>>[];
+        for (final item in list) {
+          if (item is! Map) continue;
+          final m = item;
+          final rawApplicant =
+              m['applicant'] is Map ? m['applicant'] as Map : m;
+          applicants.add(Map<String, dynamic>.from(rawApplicant as Map));
+        }
+
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ApplicantsListPage(
+              jobId: jobId,
+              applicants: applicants,
+            ),
+          ),
+        );
+      } else if (response.statusCode == 404) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No applicants found for this job.')),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to load applicants (${response.statusCode})',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading applicants: $e')),
+      );
+    }
+  }
+
   Widget _buildJobCard(Map<String, dynamic> job) {
     final title = job['jobTitle']?.toString() ?? '';
     final department = job['department']?.toString() ?? '';
@@ -344,7 +429,22 @@ class _MyJobsPageState extends State<MyJobsPage> {
       tag: status,
       tagColor: tagColor,
       imagePath: 'assets/logo.png',
-      onReviewTap: () {},
+      onReviewTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => JobDetailScreen(
+              job: job,
+              onEdit: (updatedJob) {},
+              onClose: () {},
+              onDelete: () {},
+              onViewApplicants: () {
+                _viewApplicantsForJob(job);
+              },
+            ),
+          ),
+        );
+      },
       onViewProfileTap: () {},
     );
   }

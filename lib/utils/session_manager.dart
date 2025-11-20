@@ -89,7 +89,6 @@ class SessionManager {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUserId);
     await prefs.remove(_keyProfileId);
-    await prefs.remove(_keyHealthcareId);
     await prefs.remove(_keyToken);
     await prefs.remove(_keyLoginId);
     await prefs.remove(_keyRole);
