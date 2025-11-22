@@ -23,9 +23,10 @@ class _NavbarState extends State<Navbar> {
   @override
   void initState() {
     super.initState();
-    healthcareId = (widget.hospitalData['_id'] ??
+    healthcareId = (widget.hospitalData['healthcare_id'] ??
+            widget.hospitalData['healthcareId'] ??
+            widget.hospitalData['_id'] ??
             widget.hospitalData['id'] ??
-            widget.hospitalData['healthcare_id'] ??
             '')
         .toString();
     pages = [

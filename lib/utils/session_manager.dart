@@ -14,6 +14,7 @@ class SessionManager {
   static const _keyLoginId = 'login_id';
   static const _keyRole = 'user_role';
   static const _keyHealthcareId = 'healthcare_id';
+  static const _keyHealthProfileFlag = 'health_profile_flag';
 
   /// ✅ Save the logged-in user's ID
   static Future<void> saveUserId(String userId) async {
@@ -92,7 +93,17 @@ class SessionManager {
     await prefs.remove(_keyToken);
     await prefs.remove(_keyLoginId);
     await prefs.remove(_keyRole);
-    await prefs.remove(_keyHealthcareId);
+    await prefs.remove(_keyHealthProfileFlag);
+  }
+
+  static Future<void> saveHealthProfileFlag(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keyHealthProfileFlag, value);
+  }
+
+  static Future<bool?> getHealthProfileFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keyHealthProfileFlag);
   }
 
   static Future<void> saveRole(String role) async {

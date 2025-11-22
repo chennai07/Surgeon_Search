@@ -74,24 +74,46 @@ class _ApplicantsState extends State<Applicants> {
     setState(() => isSubmitting = true);
 
     try {
-      final storedId =
-          (await SessionManager.getHealthcareId()) ?? await SessionManager.getProfileId() ?? '';
-      final healthcareId = (widget.healthcareId != null && widget.healthcareId!.isNotEmpty)
-          ? widget.healthcareId!
-          : storedId;
+      // Get healthcare_id from multiple sources
+      final storedHealthcareId = await SessionManager.getHealthcareId();
+      final storedProfileId = await SessionManager.getProfileId();
+      final storedUserId = await SessionManager.getUserId();
+      
+      print('🩺 Stored healthcare_id: $storedHealthcareId');
+      print('🩺 Stored profile_id: $storedProfileId');
+      print('🩺 Stored user_id: $storedUserId');
+      print('🩺 Widget healthcare_id: ${widget.healthcareId}');
 
-      if (healthcareId.isEmpty) {
+      // Priority: widget.healthcareId > storedHealthcareId > storedProfileId > storedUserId
+      String? healthcareId;
+      if (widget.healthcareId != null && widget.healthcareId!.isNotEmpty) {
+        healthcareId = widget.healthcareId!;
+        print('🩺 Using healthcare_id from widget: $healthcareId');
+      } else if (storedHealthcareId != null && storedHealthcareId.isNotEmpty) {
+        healthcareId = storedHealthcareId;
+        print('🩺 Using healthcare_id from session: $healthcareId');
+      } else if (storedProfileId != null && storedProfileId.isNotEmpty) {
+        healthcareId = storedProfileId;
+        print('🩺 Using profile_id as healthcare_id: $healthcareId');
+      } else if (storedUserId != null && storedUserId.isNotEmpty) {
+        healthcareId = storedUserId;
+        print('🩺 Using user_id as healthcare_id: $healthcareId');
+      }
+
+      if (healthcareId == null || healthcareId.isEmpty) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Healthcare id not found. Please login or create hospital profile.'),
+            content: Text('Session expired. Please log out and log in again.'),
+            duration: Duration(seconds: 5),
+            backgroundColor: Colors.red,
           ),
         );
+        setState(() => isSubmitting = false);
         return;
       }
 
-      final uri = Uri.parse(
-        'http://13.203.67.154:3000/api/healthcare/jobpost',
-      );
+      final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/jobpost');
 
       final Map<String, String> payload = {
         'jobTitle': jobTitleCtrl.text.trim(),
@@ -107,54 +129,119 @@ class _ApplicantsState extends State<Applicants> {
         'interviewMode': interviewMode ?? '',
         'applicationDeadline': deadlineCtrl.text.trim(),
         'healthcare_id': healthcareId,
-        // Status must match backend enum: ["job filled", "extended", "closed"].
-        // For new job posts we align with the Postman example and use "closed".
         'status': 'closed',
       };
 
-      print('🩺 jobpost healthcareId = ' + healthcareId);
-      print('🩺 jobpost payload = ' + jsonEncode(payload));
+      print('🩺 Final healthcare_id being sent: $healthcareId');
+      print('🩺 Job post payload: ${jsonEncode(payload)}');
 
-      // Attach auth token if available (backend may require authenticated request)
+      // Get auth token
       final token = await SessionManager.getToken();
-      final headers = <String, String>{};
+      final headers = <String, String>{
+        'Content-Type': 'application/x-www-form-urlencoded',
+      };
       if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
+        print('🩺 Using auth token');
       }
 
-      final resp = await http.post(
-        uri,
-        headers: headers,
-        body: payload,
-      );
+      final resp = await http.post(uri, headers: headers, body: payload);
 
-      print('🩺 jobpost response status = ' + resp.statusCode.toString());
-      print('🩺 jobpost response body = ' + resp.body.toString());
+      print('🩺 Response status: ${resp.statusCode}');
+      print('🩺 Response body: ${resp.body}');
 
       if (!mounted) return;
 
       if (resp.statusCode == 200 || resp.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Job posted successfully')),
+          const SnackBar(
+            content: Text('✅ Job posted successfully!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
         );
         Navigator.pop(context);
       } else {
-        String msg = 'Failed to post job (${resp.statusCode})';
+        // Parse error message from backend
+        String errorMsg = 'Failed to post job';
         try {
           final decoded = jsonDecode(resp.body);
-          if (decoded is Map && decoded['message'] != null) {
-            msg = decoded['message'].toString();
+          if (decoded is Map) {
+            errorMsg = decoded['message']?.toString() ?? 
+                      decoded['error']?.toString() ?? 
+                      'Failed to post job (${resp.statusCode})';
           }
-        } catch (_) {}
+        } catch (_) {
+          errorMsg = 'Failed to post job (${resp.statusCode})';
+        }
+
+        print('🩺 Error: $errorMsg');
+
+        // Check if it's a healthcare_id issue
+        if (errorMsg.toLowerCase().contains('healthcare') || 
+            errorMsg.toLowerCase().contains('hospital') ||
+            errorMsg.toLowerCase().contains('not found')) {
+          
+          // Try to fetch the profile to see what's wrong
+          try {
+            final profileUri = Uri.parse(
+              'http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId',
+            );
+            final profileResp = await http.get(profileUri).timeout(const Duration(seconds: 5));
+            
+            print('🩺 Profile check status: ${profileResp.statusCode}');
+            print('🩺 Profile check body: ${profileResp.body}');
+            
+            if (profileResp.statusCode != 200) {
+              errorMsg = 'Hospital profile not found. Please complete your hospital profile first.';
+            } else {
+              // Profile exists but job post failed - might be ID mismatch
+              try {
+                final profileData = jsonDecode(profileResp.body);
+                final data = (profileData is Map && profileData['data'] != null) 
+                    ? profileData['data'] 
+                    : profileData;
+                
+                if (data is Map) {
+                  final backendHealthcareId = data['healthcare_id']?.toString() ?? 
+                                             data['healthcareId']?.toString() ?? 
+                                             data['_id']?.toString() ?? '';
+                  
+                  print('🩺 Backend healthcare_id: $backendHealthcareId');
+                  print('🩺 Sent healthcare_id: $healthcareId');
+                  
+                  if (backendHealthcareId.isNotEmpty && backendHealthcareId != healthcareId) {
+                    // ID mismatch! Save the correct one and retry
+                    await SessionManager.saveHealthcareId(backendHealthcareId);
+                    errorMsg = 'ID mismatch detected. Please try posting the job again.';
+                  }
+                }
+              } catch (e) {
+                print('🩺 Error parsing profile: $e');
+              }
+            }
+          } catch (e) {
+            print('🩺 Error checking profile: $e');
+          }
+        }
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
+          SnackBar(
+            content: Text(errorMsg),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     } catch (e) {
+      print('🩺 Exception: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error posting job: $e')),
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
       );
     } finally {
       if (mounted) setState(() => isSubmitting = false);

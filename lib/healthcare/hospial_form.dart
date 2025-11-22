@@ -38,6 +38,8 @@ Future<Map<String, dynamic>> _addHealthcareProfile({
     final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/add');
     final req = http.MultipartRequest('POST', uri);
 
+    print('🏥 Creating hospital profile with healthcare_id: $healthcareId');
+
     req.fields.addAll({
       'hospitalName': hospitalName,
       'phoneNumber': phoneNumber,
@@ -224,6 +226,8 @@ class _HospitalFormState extends State<HospitalForm> {
       return;
     }
 
+    print('🏥 Submitting hospital profile with healthcare_id: ${widget.healthcareId}');
+
     // Submit to backend (inline to avoid missing ApiService helpers)
     final res = await _addHealthcareProfile(
       healthcareId: widget.healthcareId,
@@ -245,33 +249,61 @@ class _HospitalFormState extends State<HospitalForm> {
       logoFile: hospitalLogo,
     );
 
+    print('🏥 Hospital profile creation response: ${res['success']}');
+    if (res['data'] != null) {
+      print('🏥 Response data: ${res['data']}');
+    }
+
     if (res['success'] == true) {
-      // Try to extract the created hospital document ID from the response
-      final addPayload = res['data'];
-      String targetId = widget.healthcareId;
-      if (addPayload is Map<String, dynamic>) {
-        final inner = addPayload['data'];
-        if (inner is Map<String, dynamic>) {
-          final raw = (inner['_id'] ?? inner['id'] ?? inner['healthcare_id'])?.toString().trim();
-          if (raw != null && raw.isNotEmpty) targetId = raw;
-        } else {
-          final raw = (addPayload['_id'] ?? addPayload['id'] ?? addPayload['healthcare_id'])
-              ?.toString()
-              .trim();
-          if (raw != null && raw.isNotEmpty) targetId = raw;
+      // Extract the actual ID from backend response
+      // CRITICAL: Backend uses MongoDB _id as the primary identifier
+      // We must use this _id for all subsequent operations (job posting, etc.)
+      String finalHealthcareId = widget.healthcareId;
+      
+      if (res['data'] != null) {
+        final responseData = res['data'];
+        if (responseData is Map) {
+          // PRIORITY ORDER: _id (MongoDB primary key) > healthcare_id > healthcareId
+          // The backend likely uses _id to look up hospitals, not healthcare_id
+          final extractedId = responseData['_id'] ??
+                             (responseData['data'] is Map ? responseData['data']['_id'] : null) ??
+                             responseData['healthcare_id'] ?? 
+                             responseData['healthcareId'] ?? 
+                             (responseData['data'] is Map ? 
+                               (responseData['data']['healthcare_id'] ?? 
+                                responseData['data']['healthcareId']) : null);
+          
+          if (extractedId != null && extractedId.toString().trim().isNotEmpty) {
+            finalHealthcareId = extractedId.toString().trim();
+            print('🏥 ✅ Extracted ID from backend response: $finalHealthcareId');
+          } else {
+            print('🏥 ⚠️ No ID found in response, using original: $finalHealthcareId');
+          }
         }
       }
 
-      // Persist the resolved hospital ID for future sessions (job posts, listings, etc.)
-      await SessionManager.saveHealthcareId(targetId);
+      // Save this as the canonical healthcare_id for all future operations
+      await SessionManager.saveHealthcareId(finalHealthcareId);
+      print('🏥 💾 Saved healthcare_id to session: $finalHealthcareId');
 
-      // Fetch profile using this hospital ID and navigate to dashboard
-      final prof = await _fetchHealthcareProfile(targetId);
+      // Fetch profile using this healthcare ID and navigate to dashboard
+      final prof = await _fetchHealthcareProfile(finalHealthcareId);
+      print('🏥 Profile fetch result: ${prof['success']}');
+      
       if (prof['success'] == true) {
         final payload = prof['data'];
         final normalized = (payload is Map<String, dynamic>)
             ? (payload['data'] is Map<String, dynamic> ? payload['data'] : payload)
             : <String, dynamic>{};
+        
+        // Ensure the healthcare_id is in the normalized data
+        if (!normalized.containsKey('healthcare_id') || 
+            normalized['healthcare_id']?.toString().trim().isEmpty == true) {
+          normalized['healthcare_id'] = finalHealthcareId;
+        }
+        
+        print('🏥 Navigating to Navbar with healthcare_id: ${normalized['healthcare_id']}');
+        
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -279,10 +311,20 @@ class _HospitalFormState extends State<HospitalForm> {
           ),
         );
       } else {
-        Get.snackbar('Profile', 'Created, but failed to fetch profile');
+        Get.snackbar(
+          'Profile', 
+          'Created, but failed to fetch profile. Please try logging in again.',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
       }
     } else {
-      Get.snackbar('Submit Failed', res['message']?.toString() ?? 'Error');
+      Get.snackbar(
+        'Submit Failed', 
+        res['message']?.toString() ?? 'Error creating hospital profile',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 

@@ -174,6 +174,23 @@ class _LoginScreenState extends State<LoginScreen> {
             ? (userData['type'] ?? userData['role'] ?? (data is Map ? (data['type'] ?? data['role']) : null))?.toString()
             : null;
 
+        bool healthProfile = false;
+        if (userData is Map) {
+          final rawHp = userData['healthprofile'] ?? userData['healthProfile'];
+          if (rawHp is bool) {
+            healthProfile = rawHp;
+          } else if (rawHp is String) {
+            healthProfile = rawHp.toLowerCase() == 'true';
+          }
+        } else if (data is Map) {
+          final rawHp = data['healthprofile'] ?? data['healthProfile'];
+          if (rawHp is bool) {
+            healthProfile = rawHp;
+          } else if (rawHp is String) {
+            healthProfile = rawHp.toLowerCase() == 'true';
+          }
+        }
+
         // Extract or create profile ID (prefer deep extraction, fallback to fields/uuid)
         final extractedProfileId = _extractProfileId(userData) ??
             (data is Map ? _extractProfileId(data['profile']) : null) ??
@@ -194,6 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (role != null && role.isNotEmpty) {
           await SessionManager.saveRole(role);
         }
+        await SessionManager.saveHealthProfileFlag(healthProfile);
 
         if (!mounted) return;
         ScaffoldMessenger.of(
@@ -202,74 +220,140 @@ class _LoginScreenState extends State<LoginScreen> {
 
         final rl = (role ?? '').toLowerCase().trim();
         if (rl.contains('hospital') || rl.contains('health') || rl.contains('org')) {
-          // Prefer healthcare_id from current login response; then any stored healthcareId; finally fallback to profileId
+          // CRITICAL: Extract the user's _id from signin response
+          // The backend uses this _id as the primary identifier for healthcare profiles
           String? healthcareIdFromResponse;
+          
+          // First, try to get _id (MongoDB primary key) - this is what the backend uses!
           if (userData is Map) {
-            final raw = (userData['healthcare_id'] ??
+            final raw = (userData['_id'] ??
+                    userData['id'] ??
+                    userData['healthcare_id'] ??
                     userData['healthcareId'] ??
                     userData['healthcareID'])
                 ?.toString()
                 .trim();
-            if (raw != null && raw.isNotEmpty) healthcareIdFromResponse = raw;
+            if (raw != null && raw.isNotEmpty) {
+              healthcareIdFromResponse = raw;
+              print('🔑 Found ID in userData: $raw');
+            }
           }
+          
+          // If not found in userData, try data level
           if (healthcareIdFromResponse == null || healthcareIdFromResponse.isEmpty) {
             if (data is Map) {
-              final raw = (data['healthcare_id'] ??
+              final raw = (data['_id'] ??
+                      data['id'] ??
+                      data['healthcare_id'] ??
                       data['healthcareId'] ??
                       data['healthcareID'])
                   ?.toString()
                   .trim();
-              if (raw != null && raw.isNotEmpty) healthcareIdFromResponse = raw;
+              if (raw != null && raw.isNotEmpty) {
+                healthcareIdFromResponse = raw;
+                print('🔑 Found ID in data: $raw');
+              }
             }
           }
 
+          print('🔑 Healthcare ID from login response: $healthcareIdFromResponse');
+
           final existingHid = await SessionManager.getHealthcareId();
-          final hid = (healthcareIdFromResponse != null &&
+          print('🔑 Existing stored healthcare ID: $existingHid');
+          
+          // Priority: response _id > existing stored > profileId
+          final baseHid = (healthcareIdFromResponse != null &&
                   healthcareIdFromResponse.isNotEmpty)
               ? healthcareIdFromResponse
               : ((existingHid != null && existingHid.isNotEmpty)
                   ? existingHid
                   : profileId);
 
-          await SessionManager.saveHealthcareId(hid);
-          try {
-            final url = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$hid');
-            final resp = await http.get(url).timeout(const Duration(seconds: 15));
-            if (resp.statusCode == 200) {
-              final body = resp.body.trimLeft();
-              dynamic parsed;
-              try { parsed = jsonDecode(body); } catch (_) { parsed = {}; }
-              final payload = (parsed is Map && parsed['data'] != null) ? parsed['data'] : parsed;
-              final mapPayload = (payload is Map<String, dynamic>) ? payload : <String, dynamic>{};
+          print('🔑 ✅ Using healthcare ID: $baseHid (source: ${healthcareIdFromResponse != null ? "response._id" : existingHid != null ? "stored" : "profileId"})');
+
+          await SessionManager.saveHealthcareId(baseHid);
+          
+          print('🔑 📋 Starting profile fetch process...');
+          print('🔑 📋 healthProfile flag: $healthProfile');
+          
+          // Try to fetch profile - try multiple IDs for backward compatibility
+          Map<String, dynamic>? navHospitalData;
+          String? workingHealthcareId;
+          
+          // List of IDs to try (for backward compatibility with old profiles)
+          final idsToTry = <String>[
+            baseHid,
+            if (existingHid != null && existingHid != baseHid) existingHid,
+            if (profileId != baseHid && profileId != existingHid) profileId,
+          ];
+          
+          print('🔑 Trying to fetch profile with IDs: $idsToTry');
+          
+          for (final tryId in idsToTry) {
+            try {
+              final url = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$tryId');
+              final resp = await http.get(url).timeout(const Duration(seconds: 10));
               
-              // Check if the profile has meaningful data (not just empty or minimal data)
-              final hasValidProfile = mapPayload.isNotEmpty && 
-                  (mapPayload['hospitalName']?.toString().trim().isNotEmpty == true ||
-                   mapPayload['email']?.toString().trim().isNotEmpty == true ||
-                   mapPayload['phoneNumber']?.toString().trim().isNotEmpty == true);
+              print('🔑 Tried ID $tryId: status ${resp.statusCode}');
               
-              if (hasValidProfile) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => Navbar(hospitalData: mapPayload)),
-                );
-              } else {
-                // Profile exists but is empty/incomplete, go to form
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: hid)),
-                );
+              if (resp.statusCode == 200) {
+                final body = resp.body.trimLeft();
+                dynamic parsed;
+                try { parsed = jsonDecode(body); } catch (_) { parsed = {}; }
+                final payload = (parsed is Map && parsed['data'] != null) ? parsed['data'] : parsed;
+                final mapPayload = (payload is Map<String, dynamic>) ? payload : <String, dynamic>{};
+
+                // Check if the profile has meaningful data
+                final hasValidProfile = mapPayload.isNotEmpty && 
+                    (mapPayload['hospitalName']?.toString().trim().isNotEmpty == true ||
+                     mapPayload['email']?.toString().trim().isNotEmpty == true ||
+                     mapPayload['phoneNumber']?.toString().trim().isNotEmpty == true);
+                
+                if (hasValidProfile) {
+                  print('🔑 ✅ Found valid profile with ID: $tryId');
+                  
+                  // Extract the canonical healthcare_id from the profile
+                  final canonicalHid = (mapPayload['_id'] ??
+                          mapPayload['healthcare_id'] ??
+                          mapPayload['healthcareId'] ??
+                          mapPayload['healthcareProfileId'] ??
+                          tryId)
+                      .toString()
+                      .trim();
+                  
+                  // Save the working ID
+                  await SessionManager.saveHealthcareId(canonicalHid);
+                  workingHealthcareId = canonicalHid;
+                  
+                  navHospitalData = Map<String, dynamic>.from(mapPayload);
+                  navHospitalData['healthcare_id'] = canonicalHid;
+                  
+                  print('🔑 💾 Saved canonical healthcare_id: $canonicalHid');
+                  break; // Found profile, stop trying
+                }
               }
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: hid)),
-              );
+            } catch (e) {
+              print('🔑 Error fetching with ID $tryId: $e');
+              continue; // Try next ID
             }
-          } catch (_) {
+          }
+          
+          if (!mounted) return;
+          
+          // Navigate based on whether we found a profile
+          if (navHospitalData != null && workingHealthcareId != null) {
+            // Profile found! Navigate to dashboard
+            print('🔑 ✅ Navigating to Navbar with profile data');
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: hid)),
+              MaterialPageRoute(builder: (_) => Navbar(hospitalData: navHospitalData!)),
+            );
+          } else {
+            // No profile found - show form to create one
+            print('🔑 ⚠️ No profile found with any ID, navigating to HospitalForm');
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: baseHid)),
             );
           }
         } else if (rl.contains('surgeon') || rl.contains('doctor')) {
