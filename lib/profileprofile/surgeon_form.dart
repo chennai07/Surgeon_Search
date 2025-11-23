@@ -8,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:doc/profileprofile/surgeon_profile.dart';
+import 'package:dropdown_search/dropdown_search.dart';
+import 'package:doc/model/indian_states_districts.dart';
 
 class SurgeonForm extends StatefulWidget {
   final String profileId;
@@ -75,6 +77,9 @@ class _SurgeonFormState extends State<SurgeonForm> {
   File? logBook;
 
   String? selectedSurgicalExperience;
+  String? selectedState;
+  String? selectedDistrict;
+  List<String> districts = [];
 
   final List<String> expOptions = const [
     "0-10",
@@ -115,6 +120,12 @@ class _SurgeonFormState extends State<SurgeonForm> {
     location = TextEditingController(text: d['location'] ?? '');
     stateCtrl = TextEditingController(text: d['state'] ?? '');
     districtCtrl = TextEditingController(text: d['district'] ?? '');
+    selectedState = d['state'];
+    selectedDistrict = d['district'];
+    if (selectedState != null && IndianStatesAndDistricts.data.containsKey(selectedState)) {
+      districts = IndianStatesAndDistricts.data[selectedState]!;
+    }
+
     selectedSurgicalExperience = d['surgicalExperience']?.toString().isNotEmpty == true
         ? d['surgicalExperience'].toString()
         : null;
@@ -149,6 +160,16 @@ class _SurgeonFormState extends State<SurgeonForm> {
         location.text = (p['location'] ?? location.text) as String;
         stateCtrl.text = (p['state'] ?? stateCtrl.text) as String;
         districtCtrl.text = (p['district'] ?? districtCtrl.text) as String;
+        
+        if (p['state'] != null) {
+          selectedState = p['state'];
+          if (IndianStatesAndDistricts.data.containsKey(selectedState)) {
+            districts = IndianStatesAndDistricts.data[selectedState]!;
+          }
+        }
+        if (p['district'] != null) {
+          selectedDistrict = p['district'];
+        }
         final wx = p['workExperience'];
         if (wx is List) {
           workExperiences = wx.map<Map<String, dynamic>>((e) {
@@ -199,8 +220,8 @@ class _SurgeonFormState extends State<SurgeonForm> {
       "surgicalExperience": selectedSurgicalExperience ?? '',
       "portfolioLinks": portfolio.text,
       "summaryProfile": summary.text,
-      "state": stateCtrl.text,
-      "district": districtCtrl.text,
+      "state": selectedState ?? stateCtrl.text,
+      "district": selectedDistrict ?? districtCtrl.text,
     });
 
     if (profilePic != null) {
@@ -293,8 +314,8 @@ class _SurgeonFormState extends State<SurgeonForm> {
       logBookFile: logBook,
       yearsOfExperience: experience.text,
       surgicalExperience: selectedSurgicalExperience ?? '',
-      state: stateCtrl.text,
-      district: districtCtrl.text,
+      state: selectedState ?? stateCtrl.text,
+      district: selectedDistrict ?? districtCtrl.text,
     );
 
     if (result['success'] == true) {
@@ -465,9 +486,57 @@ Widget build(BuildContext context) {
                   TextFormField(controller: email, decoration: inputDecoration("Your email"), keyboardType: TextInputType.emailAddress),
 
                   titleText("State"),
-                  TextFormField(controller: stateCtrl, decoration: inputDecoration("Your state")),
+                  DropdownSearch<String>(
+                    popupProps: const PopupProps.menu(
+                      showSearchBox: true,
+                      searchFieldProps: TextFieldProps(
+                        decoration: InputDecoration(
+                          hintText: "Search State",
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    items: IndianStatesAndDistricts.data.keys.toList(),
+                    dropdownDecoratorProps: DropDownDecoratorProps(
+                      dropdownSearchDecoration: inputDecoration("Select State"),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedState = value;
+                        districts = IndianStatesAndDistricts.data[value] ?? [];
+                        selectedDistrict = null; // Reset district when state changes
+                      });
+                    },
+                    selectedItem: selectedState,
+                    validator: (v) => v == null ? "Required" : null,
+                  ),
+
                   titleText("District"),
-                  TextFormField(controller: districtCtrl, decoration: inputDecoration("Your district")),
+                  DropdownSearch<String>(
+                    popupProps: const PopupProps.menu(
+                      showSearchBox: true,
+                      searchFieldProps: TextFieldProps(
+                        decoration: InputDecoration(
+                          hintText: "Search District",
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
+                    items: districts,
+                    dropdownDecoratorProps: DropDownDecoratorProps(
+                      dropdownSearchDecoration: inputDecoration("Select District"),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedDistrict = value;
+                      });
+                    },
+                    selectedItem: selectedDistrict,
+                    enabled: selectedState != null, // Disable if no state selected
+                    validator: (v) => v == null ? "Required" : null,
+                  ),
 
                   titleText("Your Profile Picture"),
                   GestureDetector(
