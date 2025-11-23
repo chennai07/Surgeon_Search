@@ -476,27 +476,26 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Widget _buildSearchBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 4),
-      decoration: BoxDecoration(
-        border: Border.all(color: AppColors.white),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          const Icon(Iconsax.search_normal, color: AppColors.background),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: searchController,
-              decoration: const InputDecoration(
-                border: InputBorder.none,
-                hintText: "Search for jobs, hospitals, or titles",
-                hintStyle: TextStyle(color: Colors.grey),
-              ),
-              onChanged: _filterJobs,
-            ),
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      child: TextField(
+        controller: searchController,
+        decoration: InputDecoration(
+          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          hintText: "Search",
+          hintStyle: const TextStyle(color: Colors.grey, fontSize: 16),
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          enabledBorder: OutlineInputBorder(
+            borderSide: const BorderSide(color: Colors.lightBlue, width: 2),
+            borderRadius: BorderRadius.circular(10),
           ),
-        ],
+          focusedBorder: OutlineInputBorder(
+            borderSide: const BorderSide(color: Colors.blue, width: 2),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+        onChanged: _filterJobs,
       ),
     );
   }
@@ -619,7 +618,7 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.all(20),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(18),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -634,23 +633,24 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
               Wrap(
                 spacing: 8,
                 children: locations.map((loc) {
-                  final selected = selectedLocation == loc;
+                  final sel = selectedLocation == loc;
                   return ChoiceChip(
                     label: Text(loc),
-                    selected: selected,
+                    selected: sel,
                     selectedColor: AppColors.primary,
                     backgroundColor: AppColors.white,
                     labelStyle: TextStyle(
-                      color: selected ? Colors.white : Colors.black87,
+                      color: sel ? Colors.white : Colors.black87,
                     ),
-                    onSelected: (_) => setState(() => selectedLocation = loc),
+                    onSelected: (_) =>
+                        setState(() => selectedLocation = sel ? null : loc),
                     shape: StadiumBorder(
                       side: BorderSide(color: AppColors.primary),
                     ),
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               /// 🩺 Speciality Dropdown
               _buildDropdown(
@@ -659,7 +659,7 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
                 specialities,
                 (val) => setState(() => selectedSpeciality = val),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 12),
 
               /// 🧬 Sub-speciality Dropdown
               _buildDropdown(
@@ -668,7 +668,7 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
                 specialities,
                 (val) => setState(() => selectedSpeciality = val),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 12),
 
               /// 🧩 Position Type
               const Text(
@@ -703,7 +703,7 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               /// 💰 Salary Range
               Row(
@@ -727,7 +727,7 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
                   });
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
               /// Buttons Row
               Row(
@@ -818,29 +818,19 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
             ),
             AnimatedOpacity(
               duration: const Duration(milliseconds: 250),
-              opacity: hasValue ? 1.0 : 0.5,
-              child: Tooltip(
-                message: hasValue ? "Clear selection" : "No selection to clear",
-                textStyle: const TextStyle(color: Colors.white, fontSize: 12),
-                decoration: BoxDecoration(
-                  color: Colors.black87,
-                  borderRadius: BorderRadius.circular(6),
+              opacity: hasValue ? 1.0 : 0.45,
+              child: TextButton(
+                onPressed: hasValue ? () => onChanged(null) : null,
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(50, 30),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                preferBelow: false,
-                child: TextButton(
-                  onPressed: hasValue ? () => onChanged(null) : null,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: const Size(50, 30),
-                  ),
-                  child: Text(
-                    "Reset",
-                    style: TextStyle(
-                      color: hasValue ? const Color(0xFF00AFF4) : Colors.grey,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
+                child: Text(
+                  "Reset",
+                  style: TextStyle(
+                    color: hasValue ? const Color(0xFF00AFF4) : Colors.grey,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
                   ),
                 ),
               ),
