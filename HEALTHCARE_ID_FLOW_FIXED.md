@@ -1,6 +1,22 @@
 # FINAL FIX - Healthcare ID Flow
 
-## The Problem
+## CRITICAL UPDATE (Latest Fix)
+🔥 **FIXED: Sign-in with new credentials was logging into old accounts**
+
+### The Issue
+When using new hospital credentials to sign in, the app was attempting to fall back to previously stored `healthcare_id` from session storage. This caused users to log into **old accounts** (like he@gmail.com) instead of the new account they were trying to access.
+
+### The Solution
+1. **Clear old session data at sign-in**: Before processing any sign-in, we now clear the stored `healthcare_id` to ensure we start fresh.
+2. **No ID fallback**: Removed the logic that tried multiple old IDs. Now we ONLY use the ID from the current sign-in response.
+
+### What Changed
+- `signin_screen.dart` line ~156: Added session cleanup before processing sign-in
+- `signin_screen.dart` line ~285-340: Removed fallback to old stored IDs when fetching profiles
+
+---
+
+## The Original Problem
 The backend uses MongoDB's `_id` as the primary identifier for users/hospitals, but we were not extracting and using this `_id` correctly.
 
 ## The Solution - Complete Flow

@@ -115,4 +115,29 @@ class SessionManager {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyRole);
   }
+
+  /// ✅ Save profile ID for a specific user (by email)
+  /// This maps user email -> their profile's actual _id
+  static Future<void> saveUserProfileMapping(String email, String profileId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('profile_map_$email', profileId);
+  }
+
+  /// ✅ Get stored profile ID for a specific user (by email)
+  static Future<String?> getUserProfileMapping(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('profile_map_$email');
+  }
+
+  /// ✅ Save current user's email
+  static Future<void> saveUserEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_email', email);
+  }
+
+  /// ✅ Get current user's email
+  static Future<String?> getUserEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('user_email');
+  }
 }

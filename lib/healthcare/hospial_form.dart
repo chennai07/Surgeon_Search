@@ -286,6 +286,12 @@ class _HospitalFormState extends State<HospitalForm> {
       await SessionManager.saveHealthcareId(finalHealthcareId);
       print('🏥 💾 Saved healthcare_id to session: $finalHealthcareId');
 
+      // 🔥 CRITICAL: Save email→profile_id mapping for future logins
+      // This allows us to find the profile even with backend ID mismatch
+      final userEmail = emailController.text.trim();
+      await SessionManager.saveUserProfileMapping(userEmail, finalHealthcareId);
+      print('🏥 💾 Saved profile mapping: $userEmail → $finalHealthcareId');
+
       // Fetch profile using this healthcare ID and navigate to dashboard
       final prof = await _fetchHealthcareProfile(finalHealthcareId);
       print('🏥 Profile fetch result: ${prof['success']}');
