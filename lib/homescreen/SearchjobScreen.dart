@@ -31,9 +31,17 @@ class _SearchScreenState extends State<SearchScreen> {
   // Active filters
   String? selectedLocation;
   String? selectedSpeciality;
+  String? selectedSubSpeciality;
   List<String> selectedTypes = [];
   double minSalary = 10;
   double maxSalary = 70;
+
+  // Available filter options (dynamic)
+  final Set<String> _allLocations = {};
+  final Set<String> _allSpecialities = {};
+  final Set<String> _allSubSpecialities = {};
+  final Set<String> _allJobTypes = {};
+  bool _filtersLoaded = false;
 
   @override
   void initState() {
@@ -69,7 +77,23 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final url = Uri.parse(
           'http://13.203.67.154:3000/api/healthcare/joblist-surgeons');
-      final response = await http.get(url);
+      
+      final request = http.Request('GET', url);
+      request.headers['Content-Type'] = 'application/json';
+
+      final body = <String, dynamic>{};
+      if (selectedLocation != null) body['location'] = selectedLocation;
+      if (selectedSpeciality != null) body['speciality'] = selectedSpeciality;
+      if (selectedSubSpeciality != null) body['subSpeciality'] = selectedSubSpeciality;
+      if (selectedTypes.isNotEmpty) body['jobType'] = selectedTypes;
+      if (minSalary > 10 || maxSalary < 70) {
+        body['minSalary'] = minSalary;
+        body['maxSalary'] = maxSalary;
+      }
+
+      request.body = jsonEncode(body);
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         final body = response.body.trimLeft();
@@ -141,12 +165,32 @@ class _SearchScreenState extends State<SearchScreen> {
                 '',
             'salary': salaryValue,
           });
+
+          // Populate filter options if this is the initial load (or if we want to accumulate)
+          // We only do this if we haven't applied specific filters that would narrow this down too much,
+          // OR we can just do it on the first load.
+          if (!_filtersLoaded) {
+            final loc = m['location']?.toString();
+            if (loc != null && loc.isNotEmpty) _allLocations.add(loc);
+
+            final spec = m['department']?.toString();
+            if (spec != null && spec.isNotEmpty) _allSpecialities.add(spec);
+
+            final sub = m['subSpeciality']?.toString();
+            if (sub != null && sub.isNotEmpty) _allSubSpecialities.add(sub);
+
+            final type = m['jobType']?.toString();
+            if (type != null && type.isNotEmpty) _allJobTypes.add(type);
+          }
         }
 
         setState(() {
           _jobs = jobs;
-          _filteredJobs = jobs;
+          _filteredJobs = jobs; // API returns filtered jobs
           _isLoading = false;
+          if (!_filtersLoaded && jobs.isNotEmpty) {
+            _filtersLoaded = true;
+          }
         });
       } else {
         setState(() {
@@ -184,6 +228,7 @@ class _SearchScreenState extends State<SearchScreen> {
   void _applyFilters({
     String? location,
     String? speciality,
+    String? subSpeciality,
     List<String>? types,
     double? minSalary,
     double? maxSalary,
@@ -191,25 +236,14 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       selectedLocation = location;
       selectedSpeciality = speciality;
+      selectedSubSpeciality = subSpeciality;
       selectedTypes = types ?? [];
       this.minSalary = minSalary ?? this.minSalary;
       this.maxSalary = maxSalary ?? this.maxSalary;
-
-      _filteredJobs = _jobs.where((job) {
-        final locMatch = location == null || location.isEmpty
-            ? true
-            : job["location"] == location;
-        final specMatch = speciality == null || speciality.isEmpty
-            ? true
-            : job["speciality"] == speciality;
-        final typeMatch = types == null || types.isEmpty
-            ? true
-            : types.contains(job["type"]);
-        final salaryMatch =
-            job["salary"] >= this.minSalary && job["salary"] <= this.maxSalary;
-        return locMatch && specMatch && typeMatch && salaryMatch;
-      }).toList();
     });
+
+    // Fetch jobs with new filters
+    _fetchJobs();
   }
 
   /// 🧠 Open popup
@@ -219,9 +253,14 @@ class _SearchScreenState extends State<SearchScreen> {
       builder: (_) => FilterDialogContent(
         currentLocation: selectedLocation,
         currentSpeciality: selectedSpeciality,
+        currentSubSpeciality: selectedSubSpeciality,
         currentTypes: selectedTypes,
         currentMinSalary: minSalary,
         currentMaxSalary: maxSalary,
+        availableLocations: _allLocations.toList()..sort(),
+        availableSpecialities: _allSpecialities.toList()..sort(),
+        availableSubSpecialities: _allSubSpecialities.toList()..sort(),
+        availableJobTypes: _allJobTypes.toList()..sort(),
       ),
     );
 
@@ -229,6 +268,7 @@ class _SearchScreenState extends State<SearchScreen> {
       _applyFilters(
         location: filters['location'],
         speciality: filters['speciality'],
+        subSpeciality: filters['subSpeciality'],
         types: filters['types'],
         minSalary: filters['minSalary'],
         maxSalary: filters['maxSalary'],
@@ -241,16 +281,18 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       selectedLocation = null;
       selectedSpeciality = null;
+      selectedSubSpeciality = null;
       selectedTypes.clear();
       minSalary = 10;
       maxSalary = 70;
-      _filteredJobs = _jobs;
+      _fetchJobs(); // Refresh from API without filters
     });
   }
 
   bool _hasActiveFilters() {
     return selectedLocation != null ||
         selectedSpeciality != null ||
+        selectedSubSpeciality != null ||
         selectedTypes.isNotEmpty ||
         minSalary > 10 ||
         maxSalary < 70;
@@ -448,6 +490,7 @@ class _SearchScreenState extends State<SearchScreen> {
           _applyFilters(
             location: null,
             speciality: selectedSpeciality,
+            subSpeciality: selectedSubSpeciality,
             types: selectedTypes,
             minSalary: minSalary,
             maxSalary: maxSalary,
@@ -463,6 +506,23 @@ class _SearchScreenState extends State<SearchScreen> {
           _applyFilters(
             location: selectedLocation,
             speciality: null,
+            subSpeciality: selectedSubSpeciality,
+            types: selectedTypes,
+            minSalary: minSalary,
+            maxSalary: maxSalary,
+          );
+        }),
+      );
+    }
+
+    if (selectedSubSpeciality != null) {
+      chips.add(
+        _filterChip(selectedSubSpeciality!, () {
+          setState(() => selectedSubSpeciality = null);
+          _applyFilters(
+            location: selectedLocation,
+            speciality: selectedSpeciality,
+            subSpeciality: null,
             types: selectedTypes,
             minSalary: minSalary,
             maxSalary: maxSalary,
@@ -478,6 +538,7 @@ class _SearchScreenState extends State<SearchScreen> {
           _applyFilters(
             location: selectedLocation,
             speciality: selectedSpeciality,
+            subSpeciality: selectedSubSpeciality,
             types: selectedTypes,
             minSalary: minSalary,
             maxSalary: maxSalary,
@@ -495,6 +556,7 @@ class _SearchScreenState extends State<SearchScreen> {
         _applyFilters(
           location: selectedLocation,
           speciality: selectedSpeciality,
+          subSpeciality: selectedSubSpeciality,
           types: selectedTypes,
           minSalary: minSalary,
           maxSalary: maxSalary,
@@ -611,17 +673,28 @@ class _SearchScreenState extends State<SearchScreen> {
 class FilterDialogContent extends StatefulWidget {
   final String? currentLocation;
   final String? currentSpeciality;
+  final String? currentSubSpeciality;
   final List<String> currentTypes;
   final double currentMinSalary;
   final double currentMaxSalary;
+  
+  final List<String> availableLocations;
+  final List<String> availableSpecialities;
+  final List<String> availableSubSpecialities;
+  final List<String> availableJobTypes;
 
   const FilterDialogContent({
     super.key,
     this.currentLocation,
     this.currentSpeciality,
+    this.currentSubSpeciality,
     required this.currentTypes,
     required this.currentMinSalary,
     required this.currentMaxSalary,
+    required this.availableLocations,
+    required this.availableSpecialities,
+    required this.availableSubSpecialities,
+    required this.availableJobTypes,
   });
 
   @override
@@ -629,18 +702,15 @@ class FilterDialogContent extends StatefulWidget {
 }
 
 class _FilterDialogContentState extends State<FilterDialogContent> {
-  final List<String> locations = ["Bangalore", "Chennai", "Delhi", "Hyderabad"];
-  final List<String> specialities = ["Neuro Surgery", "Orthopedic"];
-  final List<String> positions = [
-    "Full Time",
-    "Part Time",
-    "Internship",
-    "Remote",
-    "Contract",
-  ];
+  // Fallback lists in case API returns nothing initially
+  late List<String> locations;
+  late List<String> specialities;
+  late List<String> subSpecialities;
+  late List<String> positions;
 
   String? selectedLocation;
   String? selectedSpeciality;
+  String? selectedSubSpeciality;
   List<String> selectedTypes = [];
   double minSalary = 10;
   double maxSalary = 70;
@@ -648,8 +718,26 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
   @override
   void initState() {
     super.initState();
+    
+    locations = widget.availableLocations.isNotEmpty 
+        ? widget.availableLocations 
+        : ["Bangalore", "Chennai", "Delhi", "Hyderabad"];
+        
+    specialities = widget.availableSpecialities.isNotEmpty 
+        ? widget.availableSpecialities 
+        : ["Neuro Surgery", "Orthopedic", "Spine Surgery", "General Surgery", "Cardiology", "Dermatology"];
+        
+    subSpecialities = widget.availableSubSpecialities.isNotEmpty 
+        ? widget.availableSubSpecialities 
+        : ["Spine Surgery", "Sports Medicine", "Lower GI Surgery", "Interventional Cardiology", "Brain Surgery"];
+
+    positions = widget.availableJobTypes.isNotEmpty
+        ? widget.availableJobTypes
+        : ["Full Time", "Part Time", "Internship", "Remote", "Contract"];
+
     selectedLocation = widget.currentLocation;
     selectedSpeciality = widget.currentSpeciality;
+    selectedSubSpeciality = widget.currentSubSpeciality;
     selectedTypes = List.from(widget.currentTypes);
     minSalary = widget.currentMinSalary;
     maxSalary = widget.currentMaxSalary;
@@ -708,9 +796,9 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
               /// 🧬 Sub-speciality Dropdown
               _buildDropdown(
                 "Sub-speciality",
-                selectedSpeciality,
-                specialities,
-                (val) => setState(() => selectedSpeciality = val),
+                selectedSubSpeciality,
+                subSpecialities,
+                (val) => setState(() => selectedSubSpeciality = val),
               ),
               const SizedBox(height: 12),
 
@@ -782,6 +870,7 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
                         setState(() {
                           selectedLocation = null;
                           selectedSpeciality = null;
+                          selectedSubSpeciality = null;
                           selectedTypes.clear();
                           minSalary = 10;
                           maxSalary = 70;
@@ -810,6 +899,7 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
                         Navigator.pop(context, {
                           'location': selectedLocation,
                           'speciality': selectedSpeciality,
+                          'subSpeciality': selectedSubSpeciality,
                           'types': selectedTypes,
                           'minSalary': minSalary,
                           'maxSalary': maxSalary,
