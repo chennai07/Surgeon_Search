@@ -7,7 +7,7 @@ import 'package:doc/utils/session_manager.dart';
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/homescreen/SearchjobScreen.dart';
 import 'package:doc/homescreen/Applied_Jobs.dart';
-import 'package:doc/utils/subscription_testing_screen.dart';
+
 import 'package:doc/utils/subscription_guard.dart';
 
 class ProfessionalProfileViewPage extends StatefulWidget {
@@ -120,19 +120,7 @@ class _ProfessionalProfileViewPageState
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          // 🧪 TESTING BUTTON - Remove this before production
-          IconButton(
-            icon: const Icon(Icons.science, color: Colors.orange),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SubscriptionTestingScreen(),
-                ),
-              );
-            },
-            tooltip: '🧪 Test Subscription',
-          ),
+
           IconButton(
             icon: const Icon(Iconsax.logout, color: Colors.redAccent),
             onPressed: _logout,

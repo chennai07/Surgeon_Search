@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:doc/hospital/applicants.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:doc/Subscription Plan Screen/Hospital_After 2 Months.dart';
+import 'package:doc/utils/session_manager.dart';
 
 class MyJobsPage extends StatefulWidget {
   final VoidCallback? onHospitalNameTap;
@@ -15,6 +19,142 @@ class MyJobsPage extends StatefulWidget {
 class _MyJobsPageState extends State<MyJobsPage> {
   int bottomIndex = 0;
   int tabIndex = 0; // 0 = Active, 1 = Closed
+
+  Future<void> _handlePostJob() async {
+    // Show loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      // 1. Try widget ID first
+      String healthcareId = widget.healthcareId ?? '';
+      
+      // 2. If empty, try session
+      if (healthcareId.isEmpty) {
+        healthcareId = await SessionManager.getHealthcareId() ?? '';
+      }
+      if (healthcareId.isEmpty) {
+        healthcareId = await SessionManager.getProfileId() ?? '';
+      }
+      if (healthcareId.isEmpty) {
+        healthcareId = await SessionManager.getUserId() ?? '';
+      }
+
+      if (healthcareId.isEmpty) {
+        if (mounted) Navigator.pop(context); // hide loading
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Healthcare ID is missing')),
+          );
+        }
+        return;
+      }
+
+      print('🩺 Initial ID check: $healthcareId');
+
+      // Helper function to check eligibility
+      Future<http.Response> checkEligibility(String id) {
+        final uri = Uri.parse(
+            'http://13.203.67.154:3000/api/healthcare/job-posteligible/$id');
+        print('🩺 Checking eligibility for ID: $id');
+        return http.get(uri);
+      }
+
+      var resp = await checkEligibility(healthcareId);
+      print('🩺 Response for $healthcareId: ${resp.statusCode}');
+
+      // If 404, it might be the wrong ID type. Try others from session.
+      if (resp.statusCode == 404) {
+        print('🩺 404 received. Trying fallback IDs from session...');
+        
+        final sessionHealthcareId = await SessionManager.getHealthcareId();
+        final sessionProfileId = await SessionManager.getProfileId();
+        final sessionUserId = await SessionManager.getUserId();
+
+        final List<String> candidates = [
+          if (sessionHealthcareId != null) sessionHealthcareId,
+          if (sessionProfileId != null) sessionProfileId,
+          if (sessionUserId != null) sessionUserId,
+        ];
+
+        // Remove duplicates and the one we already tried
+        final uniqueCandidates = candidates.toSet().toList();
+        uniqueCandidates.remove(healthcareId);
+
+        for (final candidate in uniqueCandidates) {
+          if (candidate.isNotEmpty) {
+            print('🩺 Retrying with candidate ID: $candidate');
+            final retryResp = await checkEligibility(candidate);
+            if (retryResp.statusCode == 200) {
+              resp = retryResp;
+              healthcareId = candidate; // Update to the working ID
+              print('🩺 Found working ID: $healthcareId');
+              break;
+            }
+          }
+        }
+      }
+      
+      if (!mounted) return;
+      Navigator.pop(context); // hide loading
+
+      print('🩺 Final Eligibility response: ${resp.statusCode} ${resp.body}');
+
+      if (resp.statusCode == 200) {
+        final data = jsonDecode(resp.body);
+        // API returns "freetrail2month": true/false
+        final bool freeTrial = data['freetrail2month'] == true;
+
+        if (freeTrial) {
+          // Eligible -> Go to Post Job Form
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => Applicants(
+                healthcareId: healthcareId,
+              ),
+            ),
+          );
+        } else {
+          // Not Eligible -> Show Subscription Popup
+          final int amount = data['paymentAmount'] is int 
+              ? data['paymentAmount'] 
+              : int.tryParse(data['paymentAmount']?.toString() ?? '0') ?? 0;
+          
+          final String hospitalType = data['hospitalType']?.toString() ?? 'Hospital Plan';
+          
+          // Construct price string, assuming 6 months as per screenshot/user
+          final String priceString = "₹${amount.toString()} for 6 months";
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HospitalFreeTrialEndedPopup(
+                planTitle: hospitalType,
+                planPrice: priceString,
+                amount: amount,
+                healthcareId: healthcareId,
+              ),
+            ),
+          );
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to check eligibility (${resp.statusCode}): ${resp.body}')),
+        );
+      }
+    } catch (e) {
+      print('🩺 Error checking eligibility: $e');
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -136,16 +276,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
                     ),
                     const SizedBox(height: 18),
                     ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => Applicants(
-                              healthcareId: widget.healthcareId,
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: _handlePostJob,
                       icon: const Icon(Icons.add, size: 18),
                       label: const Text("Post a Job"),
                       style: ElevatedButton.styleFrom(
@@ -172,4 +303,3 @@ class _MyJobsPageState extends State<MyJobsPage> {
   }
 }
   // Custom Bottom Navigation
-  

@@ -147,6 +147,8 @@ class SelectedHospitalPlanScreen extends StatelessWidget {
                                       HospitalFreeTrialEndedPopup(
                                         planTitle: '',
                                         planPrice: '',
+                                        amount: 0,
+                                        healthcareId: '',
                                       ),
                                 ),
                               );

@@ -1,17 +1,75 @@
-import 'package:doc/Subscription Plan Screen/subscription_active.dart';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'subscription_active.dart';
 
-import 'Subscription _activatedPopup.dart';
-
-class HospitalFreeTrialEndedPopup extends StatelessWidget {
+class HospitalFreeTrialEndedPopup extends StatefulWidget {
   final String planTitle;
   final String planPrice;
+  final int amount;
+  final String healthcareId;
 
   const HospitalFreeTrialEndedPopup({
     super.key,
     required this.planTitle,
     required this.planPrice,
+    required this.amount,
+    required this.healthcareId,
   });
+
+  @override
+  State<HospitalFreeTrialEndedPopup> createState() => _HospitalFreeTrialEndedPopupState();
+}
+
+class _HospitalFreeTrialEndedPopupState extends State<HospitalFreeTrialEndedPopup> {
+  bool _isProcessing = false;
+
+  Future<void> _subscribe() async {
+    setState(() => _isProcessing = true);
+
+    try {
+      final uri = Uri.parse('http://13.203.67.154:3000/api/payment/hospitalorder');
+      print('💳 Initiating payment order: $uri');
+      print('💳 Payload: amount=${widget.amount}, healthcare_id=${widget.healthcareId}');
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'amount': widget.amount,
+          'healthcare_id': widget.healthcareId,
+        }),
+      );
+
+      print('💳 Response status: ${response.statusCode}');
+      print('💳 Response body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Success
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HospitalSubscriptionActivatedPopup(),
+          ),
+        );
+      } else {
+        // Error
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to initiate subscription: ${response.body}')),
+        );
+      }
+    } catch (e) {
+      print('💳 Error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isProcessing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +143,7 @@ class HospitalFreeTrialEndedPopup extends StatelessWidget {
                   const SizedBox(height: 20),
 
                   /// You have chosen
-                  Align(
+                  const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "You have chosen,",
@@ -111,9 +169,9 @@ class HospitalFreeTrialEndedPopup extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         /// Title
-                        const Text(
-                          "Medium Hospital (50–100 beds)",
-                          style: TextStyle(
+                        Text(
+                          widget.planTitle,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
@@ -123,9 +181,9 @@ class HospitalFreeTrialEndedPopup extends StatelessWidget {
                         const SizedBox(height: 6),
 
                         /// Price
-                        const Text(
-                          "₹Y,000 for 6 months",
-                          style: TextStyle(
+                        Text(
+                          widget.planPrice,
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
@@ -148,15 +206,7 @@ class HospitalFreeTrialEndedPopup extends StatelessWidget {
 
                         /// Subscribe Button
                         InkWell(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const HospitalSubscriptionActivatedPopup(),
-                              ),
-                            );
-                          },
+                          onTap: _isProcessing ? null : _subscribe,
                           child: Container(
                             width: double.infinity,
                             height: 45,
@@ -165,14 +215,23 @@ class HospitalFreeTrialEndedPopup extends StatelessWidget {
                               borderRadius: BorderRadius.circular(10),
                             ),
                             alignment: Alignment.center,
-                            child: const Text(
-                              "Subscribe Now",
-                              style: TextStyle(
-                                color: Color(0xFF0052CC),
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: _isProcessing
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Color(0xFF0052CC),
+                                    ),
+                                  )
+                                : const Text(
+                                    "Subscribe Now",
+                                    style: TextStyle(
+                                      color: Color(0xFF0052CC),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                       ],
@@ -182,13 +241,16 @@ class HospitalFreeTrialEndedPopup extends StatelessWidget {
                   /// Change plan
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Text(
-                      "Change",
-                      style: TextStyle(
-                        color: Color(0xFF005BD4),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        decoration: TextDecoration.underline,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 18),
+                      child: const Text(
+                        "Change",
+                        style: TextStyle(
+                          color: Color(0xFF005BD4),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          decoration: TextDecoration.underline,
+                        ),
                       ),
                     ),
                   ),

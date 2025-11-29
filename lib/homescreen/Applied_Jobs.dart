@@ -43,6 +43,11 @@ class _AppliedJobsScreenState extends State<AppliedJobsScreen> {
         return;
       }
 
+      // 1. Fetch ALL jobs first to create a lookup map
+      // This is the same API used in SearchScreen: http://13.203.67.154:3000/api/healthcare/joblist-surgeons
+      final allJobsLookup = await _fetchAllJobsLookup();
+
+      // 2. Fetch Applied Jobs
       final url = Uri.parse(
           'http://13.203.67.154:3000/api/jobs/applied-jobs/$profileId');
       final response = await http.get(url);
@@ -64,12 +69,43 @@ class _AppliedJobsScreenState extends State<AppliedJobsScreen> {
             : (data is Map && data['jobs'] is List ? data['jobs'] : <dynamic>[]);
 
         final jobs = <Map<String, dynamic>>[];
+        
+        // Process each job application
         for (final item in list) {
           if (item is! Map) continue;
           final m = item;
 
-          // A lot of applied-jobs APIs nest the job data inside
-          // m['job'] or m['jobProfile']['job']. Fall back to m itself.
+          // 🔍 Improved Job ID Extraction
+          String? jobId;
+          
+          // 1. Direct fields
+          if (m['jobId'] != null) jobId = m['jobId'].toString();
+          else if (m['job_id'] != null) jobId = m['job_id'].toString();
+          
+          // 2. Nested objects or strings
+          if (jobId == null) {
+            if (m['job'] is Map) {
+               jobId = m['job']['_id']?.toString() ?? m['job']['id']?.toString();
+            } else if (m['job'] is String) {
+               jobId = m['job'];
+            }
+          }
+          
+          if (jobId == null) {
+             if (m['jobProfile'] is Map) {
+                if (m['jobProfile']['job'] is Map) {
+                   jobId = m['jobProfile']['job']['_id']?.toString();
+                } else if (m['jobProfile']['job'] is String) {
+                   jobId = m['jobProfile']['job'];
+                } else {
+                   jobId = m['jobProfile']['_id']?.toString();
+                }
+             } else if (m['jobProfile'] is String) {
+               jobId = m['jobProfile'];
+             }
+          }
+
+          // Initial extraction from the list endpoint
           Map rawJob;
           if (m['job'] is Map) {
             rawJob = m['job'] as Map;
@@ -82,40 +118,62 @@ class _AppliedJobsScreenState extends State<AppliedJobsScreen> {
             rawJob = m;
           }
 
-          // Try to derive a readable applied date from the wrapper object
-          final rawDate = m['appliedAt'] ?? m['createdAt'] ?? m['updatedAt'] ?? '';
-          String dateLabel = '';
-          if (rawDate is String && rawDate.isNotEmpty) {
-            try {
-              final dt = DateTime.parse(rawDate);
-              dateLabel = dt.toLocal().toString().split(' ').first;
-            } catch (_) {
-              dateLabel = rawDate.toString();
-            }
-          }
-
-          final title = (rawJob['jobTitle'] ??
+          String title = (rawJob['jobTitle'] ??
                   rawJob['title'] ??
                   rawJob['jobRole'] ??
                   rawJob['role'] ??
                   rawJob['position'])
               ?.toString()
-              .trim();
+              .trim() ?? '';
 
-          final org = (rawJob['healthcareName'] ??
+          String org = (rawJob['healthcareName'] ??
                   rawJob['hospitalName'] ??
                   rawJob['healthcareOrganization'] ??
                   rawJob['organisation'] ??
                   rawJob['organization'])
               ?.toString()
-              .trim();
+              .trim() ?? '';
 
-          final desc = (rawJob['aboutRole'] ??
+          String location = rawJob['location']?.toString() ?? '';
+          String desc = (rawJob['aboutRole'] ??
                   rawJob['description'] ??
                   rawJob['jobDescription'] ??
                   rawJob['roleDescription'])
               ?.toString()
-              .trim();
+              .trim() ?? '';
+
+          // 🌟 MAGIC FIX: Use the lookup map if details are missing!
+          if ((title.isEmpty || org.isEmpty) && jobId != null) {
+             print('⚠️ Missing details for job ID: $jobId');
+             
+             if (allJobsLookup.containsKey(jobId)) {
+               final lookupJob = allJobsLookup[jobId]!;
+               print('✅ Found job details in lookup for ID: $jobId');
+               
+               if (title.isEmpty) title = (lookupJob['jobTitle'] ?? lookupJob['title'] ?? '').toString();
+               if (org.isEmpty) org = (lookupJob['healthcareName'] ?? lookupJob['hospitalName'] ?? lookupJob['healthcareOrganization'] ?? '').toString();
+               if (location.isEmpty) location = (lookupJob['location'] ?? '').toString();
+               if (desc.isEmpty) desc = (lookupJob['aboutRole'] ?? lookupJob['description'] ?? '').toString();
+             } else {
+               print('❌ Job ID $jobId NOT found in lookup map.');
+               // Fallback: If not in lookup (maybe expired/closed?), try individual fetch
+               try {
+                print('🔄 Attempting individual fetch for $jobId...');
+                final details = await _fetchJobDetails(jobId);
+                if (details != null) {
+                  print('✅ Individual fetch successful for $jobId');
+                  if (title.isEmpty) title = (details['jobTitle'] ?? details['title'] ?? '').toString();
+                  if (org.isEmpty) org = (details['healthcareName'] ?? details['hospitalName'] ?? details['healthcareOrganization'] ?? '').toString();
+                  if (location.isEmpty) location = (details['location'] ?? '').toString();
+                  if (desc.isEmpty) desc = (details['aboutRole'] ?? details['description'] ?? '').toString();
+                } else {
+                  print('❌ Individual fetch returned null for $jobId');
+                }
+              } catch (e) {
+                print('Error fetching details for job $jobId: $e');
+              }
+             }
+          }
 
           final statusValue = (m['status'] ??
                   m['applicationStatus'] ??
@@ -125,328 +183,339 @@ class _AppliedJobsScreenState extends State<AppliedJobsScreen> {
               .trim();
 
           jobs.add({
-            'title': title ?? '',
-            'org': org ?? '',
-            'location': rawJob['location']?.toString() ?? '',
-            'date': dateLabel,
-            'status': statusValue ?? '',
-            'description': desc ?? '',
+            'title': title.isNotEmpty ? title : 'Unknown Role',
+            'org': org.isNotEmpty ? org : 'Healthcare Organization',
+            'location': location.isNotEmpty ? location : 'Location not specified',
+            'status': statusValue ?? 'Applied',
+            'description': desc.isNotEmpty ? desc : 'No description available for this position.',
           });
         }
 
-        setState(() {
-          appliedJobs = jobs;
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            appliedJobs = jobs;
+            _isLoading = false;
+          });
+        }
       } else if (response.statusCode == 404) {
-        // No applied jobs found for this user/profile
-        setState(() {
-          appliedJobs = [];
-          _isLoading = false;
-        });
+        if (mounted) {
+          setState(() {
+            appliedJobs = [];
+            _isLoading = false;
+          });
+        }
       } else {
+        if (mounted) {
+          setState(() {
+            _error = 'Failed to load applied jobs (${response.statusCode})';
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
         setState(() {
-          _error = 'Failed to load applied jobs (${response.statusCode})';
+          _error = 'Error loading applied jobs: $e';
           _isLoading = false;
         });
       }
-    } catch (e) {
-      setState(() {
-        _error = 'Error loading applied jobs: $e';
-        _isLoading = false;
-      });
     }
+  }
+
+  /// Helper to fetch ALL jobs and create a lookup map by ID
+  Future<Map<String, Map<String, dynamic>>> _fetchAllJobsLookup() async {
+    try {
+      final url = Uri.parse('http://13.203.67.154:3000/api/healthcare/joblist-surgeons');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final body = response.body.trimLeft();
+        dynamic decoded;
+        try {
+          decoded = jsonDecode(body);
+        } catch (_) {
+          decoded = {};
+        }
+
+        final data = decoded is Map && decoded['data'] != null
+            ? decoded['data']
+            : decoded;
+        final list = data is List
+            ? data
+            : (data is Map && data['jobs'] is List ? data['jobs'] : <dynamic>[]);
+        
+        final Map<String, Map<String, dynamic>> lookup = {};
+        
+        for (final item in list) {
+          if (item is Map) {
+            final id = (item['_id'] ?? item['id'])?.toString();
+            if (id != null && id.isNotEmpty) {
+              lookup[id] = Map<String, dynamic>.from(item);
+            }
+          }
+        }
+        return lookup;
+      }
+    } catch (e) {
+      print('Error fetching job list for lookup: $e');
+    }
+    return {};
+  }
+
+  /// Helper to fetch individual job details
+  Future<Map<String, dynamic>?> _fetchJobDetails(String jobId) async {
+    try {
+      final url = Uri.parse(
+          'http://13.203.67.154:3000/api/healthcare/job-profile/$jobId');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final body = response.body.trimLeft();
+        final decoded = jsonDecode(body);
+        final data = decoded is Map && decoded['data'] != null
+            ? decoded['data']
+            : decoded;
+        return data is Map<String, dynamic> ? data : null;
+      }
+    } catch (_) {
+      // Ignore errors, just return null
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.white,
-      appBar: AppBar(
-        title: const Text("Applied Jobs"),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Iconsax.close_circle,
-                          color: Colors.redAccent,
-                          size: 60,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontSize: 14,
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        ElevatedButton.icon(
-                          onPressed: _loadAppliedJobs,
-                          icon: const Icon(Iconsax.refresh, size: 18),
-                          label: const Text("Retry"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              : appliedJobs.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Iconsax.document,
-                            size: 80,
-                            color: Colors.grey.shade300,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            "No applied jobs yet 📝",
-                            style: TextStyle(
-                              color: Colors.black54,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            "Start applying to jobs to see them here",
-                            style: TextStyle(
-                              color: Colors.black38,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.all(16),
-                      itemCount: appliedJobs.length,
-                      itemBuilder: (context, index) {
-                        final job = appliedJobs[index];
-                        final String status =
-                            (job['status'] ?? 'Applied').toString();
-                        final String description =
-                            (job['description'] ?? '').toString();
-                        final String date = (job['date'] ?? '').toString();
-
-                        Color statusColor;
-                        if (status.toLowerCase().contains('interview')) {
-                          statusColor = Colors.green;
-                        } else if (status.toLowerCase().contains('reject')) {
-                          statusColor = Colors.redAccent;
-                        } else {
-                          statusColor = AppColors.primary;
-                        }
-
-                        return Card(
-                          elevation: 3,
-                          margin: const EdgeInsets.only(bottom: 15),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(14),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                /// Top: icon + basic info
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 24,
-                                      backgroundColor:
-                                          AppColors.primary.withOpacity(0.08),
-                                      child: const Icon(
-                                        Iconsax.briefcase,
-                                        color: AppColors.primary,
-                                        size: 22,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            job['title'] ?? 'Unknown Role',
-                                            style: const TextStyle(
-                                              color: AppColors.primary,
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            job['org'] ?? '',
-                                            style: const TextStyle(
-                                              color: Colors.black87,
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Iconsax.location,
-                                                size: 14,
-                                                color: Colors.black54,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Expanded(
-                                                child: Text(
-                                                  job['location'] ?? '',
-                                                  style: const TextStyle(
-                                                    color: Colors.black54,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-
-                                /// Middle: short description
-                                if (description.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    description,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Colors.black87,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-
-                                /// Bottom row: applied date (left) + status pill (right)
-                                if (date.isNotEmpty || status.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      if (date.isNotEmpty)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.green.shade50,
-                                            borderRadius:
-                                                BorderRadius.circular(6),
-                                            border: Border.all(
-                                              color: Colors.green.shade200,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                Iconsax.tick_circle,
-                                                size: 14,
-                                                color:
-                                                    Colors.green.shade700,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                "Applied on $date",
-                                                style: TextStyle(
-                                                  color:
-                                                      Colors.green.shade700,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      if (status.isNotEmpty)
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 4,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color:
-                                                statusColor.withOpacity(0.12),
-                                            borderRadius:
-                                                BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            status,
-                                            style: TextStyle(
-                                              color: statusColor,
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-      bottomNavigationBar: Container(
-        height: 65,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade300)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+      backgroundColor: Colors.white, // White background as per design
+      body: SafeArea(
+        child: Column(
           children: [
-            _bottomNavItem(Iconsax.search_normal, "Search", false, () {
-              Navigator.pushReplacement(
+            // Custom Header
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: Column(
+                  children: [
+                    // Logo
+                    Image.asset(
+                      'assets/logo2.png', // Assuming this is the Surgeon Search logo
+                      height: 50,
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      "Applied Jobs",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Content
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _error != null
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline,
+                                  color: Colors.red, size: 40),
+                              const SizedBox(height: 10),
+                              Text(_error!,
+                                  style: const TextStyle(color: Colors.red)),
+                              TextButton(
+                                onPressed: _loadAppliedJobs,
+                                child: const Text("Retry"),
+                              )
+                            ],
+                          ),
+                        )
+                      : appliedJobs.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Iconsax.document,
+                                      size: 60, color: Colors.grey.shade300),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    "No applied jobs yet",
+                                    style: TextStyle(
+                                        color: Colors.grey, fontSize: 16),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: appliedJobs.length,
+                              itemBuilder: (context, index) {
+                                final job = appliedJobs[index];
+                                return _buildJobCard(job);
+                              },
+                            ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNavBar(context),
+    );
+  }
+
+  Widget _buildJobCard(Map<String, dynamic> job) {
+    final status = job['status'].toString();
+    
+    // Determine status color and text
+    Color statusColor = const Color(0xFF6C63FF); // Default purple (Applied)
+    String statusText = status;
+
+    if (status.toLowerCase().contains('interview')) {
+      statusColor = const Color(0xFF00C4B4); // Teal
+      statusText = "Interview Scheduled";
+    } else if (status.toLowerCase().contains('decline') || status.toLowerCase().contains('reject')) {
+      statusColor = const Color(0xFFFF914D); // Orange
+      statusText = "Application Declined";
+    } else {
+      statusText = "Applied";
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Top Row: Logo + Info
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Logo
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Image.asset('assets/logo.png'), // Placeholder logo
+                ),
+              ),
+              const SizedBox(width: 12),
+              
+              // Info
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      job['title'],
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0062FF), // Blue color
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      job['org'],
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      job['location'],
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Description
+          Text(
+            job['description'],
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.black54,
+              height: 1.4,
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Status Button
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: statusColor,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              statusText,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNavBar(BuildContext context) {
+    return Container(
+      height: 70,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _navItem(Iconsax.search_normal, "Search", false, () {
+             Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (_) => const SearchScreen(),
                 ),
               );
-            }),
-            _bottomNavItem(Iconsax.document, "Applied Jobs", true, () {
-              // Already on applied jobs; no action
-            }),
-            _bottomNavItem(Iconsax.user, "Profile", false, () async {
+          }),
+          _navItem(Icons.bookmark, "Applied Jobs", true, () {}), // Using bookmark icon to match design closer
+          _navItem(Iconsax.user, "Profile", false, () async {
               final profileId = await SessionManager.getProfileId();
               if (!mounted) return;
               if (profileId == null || profileId.isEmpty) {
@@ -466,29 +535,30 @@ class _AppliedJobsScreenState extends State<AppliedJobsScreen> {
                   ),
                 ),
               );
-            }),
-          ],
-        ),
+          }),
+        ],
       ),
     );
   }
 
-  // Bottom Navigation Item (same visual style as other screens)
-  Widget _bottomNavItem(
-      IconData icon, String label, bool isActive, VoidCallback onTap) {
+  Widget _navItem(IconData icon, String label, bool isActive, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: isActive ? Colors.blue : Colors.grey, size: 22),
+          Icon(
+            icon,
+            color: isActive ? const Color(0xFF0062FF) : Colors.grey.shade400,
+            size: 24,
+          ),
           const SizedBox(height: 4),
           Text(
             label,
-            style: GoogleFonts.poppins(
+            style: TextStyle(
               fontSize: 12,
-              color: isActive ? Colors.blue : Colors.grey,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              color: isActive ? const Color(0xFF0062FF) : Colors.grey.shade400,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
         ],
