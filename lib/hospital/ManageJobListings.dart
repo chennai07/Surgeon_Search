@@ -55,13 +55,31 @@ class _ManageJobListingsState extends State<ManageJobListings> {
         return;
       }
 
-      print('👥 Fetching jobs for healthcare_id: $storedId');
+      print('👥 Fetching applicants for healthcare_id: $storedId');
+      await _fetchOverallApplicants(storedId);
 
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      print('👥 Error: $e');
+      if (!mounted) return;
+      setState(() {
+        _error = 'Error loading applicants: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchOverallApplicants(String healthcareId) async {
+    try {
       final uri = Uri.parse(
-          'http://13.203.67.154:3000/api/healthcare/joblist-healthcare/$storedId');
+        'http://13.203.67.154:3000/api/jobs/applied-jobs/overall-jobs-healthcare/$healthcareId',
+      );
       final response = await http.get(uri);
 
-      print('👥 Jobs response status: ${response.statusCode}');
+      print('👥 Overall Applicants response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final body = response.body.trimLeft();
@@ -75,122 +93,104 @@ class _ManageJobListingsState extends State<ManageJobListings> {
         final data = decoded is Map && decoded['data'] != null
             ? decoded['data']
             : decoded;
-        final list = data is List
-            ? data
-            : (data is Map && data['jobs'] is List ? data['jobs'] : <dynamic>[]);
-
-        final fetchedJobs = <Map<String, dynamic>>[];
-        for (final item in list) {
-          if (item is Map) {
-            fetchedJobs.add(Map<String, dynamic>.from(item as Map));
-          }
-        }
-
-        print('👥 Found ${fetchedJobs.length} jobs');
-
-        if (!mounted) return;
-        // First store jobs, then fetch applicants for all jobs
-        setState(() {
-          jobs = fetchedJobs;
-        });
-
-        await _fetchApplicantsForAllJobs();
-
-        if (!mounted) return;
-        setState(() {
-          _isLoading = false;
-        });
-      } else if (response.statusCode == 404) {
-        // No jobs found – treat as empty list, not an error
-        if (!mounted) return;
-        setState(() {
-          jobs = [];
-          _applicants = [];
-          _error = null;
-          _isLoading = false;
-        });
-      } else {
-        if (!mounted) return;
-        setState(() {
-          _error = 'Failed to load jobs (${response.statusCode})';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      print('👥 Error: $e');
-      if (!mounted) return;
-      setState(() {
-        _error = 'Error loading jobs: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _fetchApplicantsForAllJobs() async {
-    final aggregated = <Map<String, dynamic>>[];
-
-    print('👥 Fetching applicants for ${jobs.length} jobs');
-
-    for (final job in jobs) {
-      final rawId = job['_id'] ?? job['id'] ?? '';
-      final jobId = rawId.toString();
-      if (jobId.isEmpty) continue;
-
-      final jobTitle = (job['jobTitle'] ?? job['title'] ?? '').toString();
-      final jobStatus = (job['status'] ?? 'Active').toString();
-
-      try {
-        final uri = Uri.parse(
-          'http://13.203.67.154:3000/api/jobs/applied-jobs/specific-jobs/$jobId',
-        );
-        final response = await http.get(uri);
-
-        print('👥 Applicants for job $jobId: status ${response.statusCode}');
-
-        if (response.statusCode != 200) continue;
-
-        final body = response.body.trimLeft();
-        dynamic decoded;
-        try {
-          decoded = jsonDecode(body);
-        } catch (_) {
-          decoded = [];
-        }
-
-        final data = decoded is Map && decoded['data'] != null
-            ? decoded['data']
-            : decoded;
+        
+        // The API likely returns a list of applications
         final list = data is List
             ? data
             : (data is Map && data['applications'] is List
                 ? data['applications']
                 : <dynamic>[]);
 
+        final aggregated = <Map<String, dynamic>>[];
+
         for (final item in list) {
           if (item is! Map) continue;
-          final m = item;
-          final rawApplicant = m['applicant'] is Map
-              ? m['applicant'] as Map
-              : m;
-          final applicantMap =
-              Map<String, dynamic>.from(rawApplicant as Map);
-          applicantMap['jobId'] = jobId;
+          // Adjust parsing based on actual API response structure
+          // Assuming structure is similar to:
+          // { 
+          //   "_id": "...", 
+          //   "jobId": { "jobTitle": "...", "status": "..." }, 
+          //   "applicantId": { "firstName": "...", "lastName": "...", "location": "..." },
+          //   "status": "applied",
+          //   ...
+          // }
+          // OR flattened. 
+          // Let's try to handle both nested and flat structures robustly.
+          
+          final m = item as Map<String, dynamic>;
+          
+          // Debug print to see structure
+          // print('👥 Processing item: $m');
+
+          // Extract Job Details
+          // The API might return 'jobId' as an object or 'job' as an object
+          var jobObj = m['jobId'];
+          if (jobObj is! Map) {
+             jobObj = m['job'];
+          }
+          if (jobObj is! Map) {
+             // If neither is a map, maybe the item itself has job details or jobId is just an ID string
+             jobObj = m; 
+          }
+
+          final jobTitle = (jobObj['jobTitle'] ?? jobObj['title'] ?? m['jobTitle'] ?? '').toString();
+          final jobStatus = (jobObj['status'] ?? m['status'] ?? 'Active').toString();
+          final jobId = (jobObj['_id'] ?? jobObj['id'] ?? m['jobId'] ?? '').toString();
+
+          // Extract Applicant Details
+          var applicantObj = m['applicantId'];
+          if (applicantObj is! Map) {
+            applicantObj = m['applicant'];
+          }
+          if (applicantObj is! Map) {
+            applicantObj = m;
+          }
+
+          final firstName = (applicantObj['firstName'] ?? applicantObj['name'] ?? '').toString();
+          final lastName = (applicantObj['lastName'] ?? '').toString();
+          final name = [firstName, lastName].where((s) => s.isNotEmpty).join(' ').trim();
+          final location = (applicantObj['location'] ?? '').toString();
+          
+          // Extract Application Details
+          final status = (m['status'] ?? 'Applied').toString();
+          final createdRaw = (m['createdAt'] ?? m['appliedOn'] ?? '').toString();
+          
+          final applicantMap = Map<String, dynamic>.from(m);
           applicantMap['jobTitle'] = jobTitle;
           applicantMap['jobStatus'] = jobStatus;
+          applicantMap['jobId'] = jobId;
+          applicantMap['applicantName'] = name;
+          applicantMap['applicantLocation'] = location;
+          applicantMap['status'] = status;
+          applicantMap['appliedOn'] = createdRaw;
+
+          // print('👥 Extracted: jobTitle=$jobTitle, name=$name');
+
           aggregated.add(applicantMap);
         }
-      } catch (_) {
-        // Ignore errors per job; other jobs may still have applicants
-        continue;
+
+        print('👥 Total applicants found: ${aggregated.length}');
+
+        if (!mounted) return;
+        setState(() {
+          _applicants = aggregated;
+        });
+      } else {
+        print('👥 Failed to fetch applicants: ${response.statusCode}');
+        if (!mounted) return;
+        setState(() {
+           // If 404, maybe just empty list
+           if (response.statusCode == 404) {
+             _applicants = [];
+           } else {
+             _error = 'Failed to load applicants (${response.statusCode})';
+           }
+        });
       }
+    } catch (e) {
+      print('👥 Error fetching overall applicants: $e');
+      rethrow;
     }
-
-    print('👥 Total applicants found: ${aggregated.length}');
-
-    if (!mounted) return;
-    setState(() {
-      _applicants = aggregated;
-    });
   }
 
   @override
@@ -707,14 +707,14 @@ class _ManageJobListingsState extends State<ManageJobListings> {
 
     return ApplicantCard(
       name: name.isNotEmpty ? name : 'Unknown',
-      role: jobTitle.isNotEmpty ? jobTitle : 'Applied Position',
+      role: '', // Role is now empty or can be used for something else, as Job Title is separate
       location: location,
-      qualification:
-          appliedOn.isNotEmpty ? 'Applied on $appliedOn' : 'Applied date N/A',
-      currentRole: '',
+      qualification: appliedOn.isNotEmpty ? 'Applied on $appliedOn' : 'Applied date N/A',
+      currentRole: '', // You can map this to something else if needed
       tag: status.isNotEmpty ? status : 'N/A',
       tagColor: tagColor,
       imagePath: '',
+      jobTitle: jobTitle.isNotEmpty ? jobTitle : 'Applied Position',
       onReviewTap: () {
         Navigator.push(
           context,

@@ -11,6 +11,7 @@ class ApplicantCard extends StatelessWidget {
   final VoidCallback? onReviewTap;
 
   final String imagePath;
+  final String? jobTitle; // Added for the new design
 
   const ApplicantCard({
     super.key,
@@ -24,6 +25,7 @@ class ApplicantCard extends StatelessWidget {
     required this.imagePath,
     this.onReviewTap,
     required Null Function() onViewProfileTap,
+    this.jobTitle,
   });
 
   @override
@@ -89,6 +91,19 @@ class ApplicantCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // JOB TITLE (if present)
+                  if (jobTitle != null && jobTitle!.isNotEmpty) ...[
+                    Text(
+                      jobTitle!,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                  ],
+
                   // NAME + TAG
                   Row(
                     children: [
@@ -98,6 +113,7 @@ class ApplicantCard extends StatelessWidget {
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
+                            color: Colors.black87,
                           ),
                         ),
                       ),
