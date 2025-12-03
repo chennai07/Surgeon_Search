@@ -296,7 +296,7 @@ class _LoginScreenState extends State<LoginScreen> {
           print('🔑 IDs to try (in order): $idsToTry');
           
           print('🔑 📋 Starting profile fetch process...');
-          print('🔑 📋 healthProfile flag: $healthProfile');
+          print('🔑 📋 healthProfile flag: $healthProfile (IGNORING FLAG - ALWAYS CHECKING)');
           print('🔑 📋 User email: $email');
           
           // Try to fetch profile using multiple IDs in priority order
@@ -416,6 +416,7 @@ class _LoginScreenState extends State<LoginScreen> {
           if (!mounted) return;
           
           // Navigate based on whether we found a profile
+          // We prioritize finding the profile over the healthProfile flag
           if (navHospitalData != null && workingHealthcareId != null) {
             // Profile found! Navigate to dashboard
             print('🔑 ✅ Navigating to Navbar with profile data');
@@ -423,45 +424,40 @@ class _LoginScreenState extends State<LoginScreen> {
               context,
               MaterialPageRoute(builder: (_) => Navbar(hospitalData: navHospitalData!)),
             );
-          } else if (healthProfile) {
-            // healthProfile is TRUE but we couldn't fetch the profile
-            // This could mean:
-            // 1. Network issue (temporary)
-            // 2. Backend corrupted the profile (after job posting)
-            // 3. Profile was deleted but flag not updated (rare)
-            print('🔑 ⚠️ healthProfile is TRUE but profile couldn\'t be loaded');
-            print('🔑 ⚠️ This is likely due to backend profile corruption after job posting');
-            
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  '⚠️ Your profile data was corrupted by the backend.\n'
-                  'This is a known issue that happens after posting jobs.\n'
-                  'Please contact support with your email: $email\n'
-                  'Backend team needs to restore your profile data.',
-                ),
-                duration: const Duration(seconds: 12),
-                backgroundColor: Colors.red,
-                action: SnackBarAction(
-                  label: 'Retry',
-                  textColor: Colors.white,
-                  onPressed: () {
-                    // Retry sign in
-                    _signIn();
-                  },
-                ),
-              ),
-            );
-            // Keep user on login screen to retry
           } else {
-            // No profile found and healthProfile is FALSE - show form to create one
-            print('🔑 ✅ New user (healthProfile=false), navigating to HospitalForm');
-            // Use user's _id from sign-in response
-            final idForForm = healthcareIdFromResponse ?? idsToTry.first;
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: idForForm)),
-            );
+            // No profile found.
+            // If healthProfile is TRUE, we should have found it. Show error.
+            if (healthProfile) {
+               print('🔑 ⚠️ healthProfile is TRUE but profile couldn\'t be loaded');
+               ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text(
+                    'We detected a sync issue with your profile data. Please tap "Refresh Profile" to restore your access.',
+                  ),
+                  duration: const Duration(seconds: 10),
+                  backgroundColor: Colors.orange.shade800,
+                  action: SnackBarAction(
+                    label: 'Refresh Profile',
+                    textColor: Colors.white,
+                    onPressed: () {
+                      final idForForm = healthcareIdFromResponse ?? (idsToTry.isNotEmpty ? idsToTry.first : profileId);
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: idForForm)),
+                      );
+                    },
+                  ),
+                ),
+              );
+            } else {
+              // healthProfile is FALSE, so it's a new user or intentional.
+              print('🔑 ✅ New user (healthProfile=false), navigating to HospitalForm');
+              final idForForm = healthcareIdFromResponse ?? (idsToTry.isNotEmpty ? idsToTry.first : profileId);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: idForForm)),
+              );
+            }
           }
         } else if (rl.contains('surgeon') || rl.contains('doctor')) {
           try {

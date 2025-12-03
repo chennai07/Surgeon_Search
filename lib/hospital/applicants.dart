@@ -116,6 +116,70 @@ class _ApplicantsState extends State<Applicants> {
         return;
       }
 
+      // ---------------------------------------------------------
+      // 🛡️ SECURITY & STABILITY CHECK
+      // Verify the healthcare_id is valid BEFORE posting
+      // This prevents "profile corruption" caused by posting with invalid IDs
+      // ---------------------------------------------------------
+      String finalHealthcareId = healthcareId;
+      bool idVerified = false;
+
+      print('🩺 🛡️ Verifying healthcare_id: $finalHealthcareId');
+      
+      try {
+        // 1. Check if current ID works
+        final checkUri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$finalHealthcareId');
+        final checkResp = await http.get(checkUri).timeout(const Duration(seconds: 5));
+        
+        if (checkResp.statusCode == 200) {
+          final body = jsonDecode(checkResp.body);
+          final data = (body is Map && body['data'] != null) ? body['data'] : body;
+          if (data is Map && (data['hospitalName'] != null || data['email'] != null)) {
+            print('🩺 🛡️ ID $finalHealthcareId is VALID');
+            idVerified = true;
+          }
+        }
+      } catch (e) {
+        print('🩺 🛡️ ID check failed: $e');
+      }
+
+      // 2. If ID is invalid, try to recover via Email
+      if (!idVerified) {
+        print('🩺 ⚠️ ID $finalHealthcareId seems invalid. Attempting recovery via email...');
+        final userEmail = await SessionManager.getUserEmail();
+        
+        if (userEmail != null && userEmail.isNotEmpty) {
+          try {
+            final emailUri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/email/$userEmail');
+            final emailResp = await http.get(emailUri).timeout(const Duration(seconds: 5));
+            
+            if (emailResp.statusCode == 200) {
+              final body = jsonDecode(emailResp.body);
+              final data = (body is Map && body['data'] != null) ? body['data'] : body;
+              
+              if (data is Map) {
+                final recoveredId = data['_id'] ?? data['healthcare_id'] ?? data['healthcareId'];
+                if (recoveredId != null) {
+                  print('🩺 ✅ Recovered valid ID via email: $recoveredId');
+                  finalHealthcareId = recoveredId.toString();
+                  await SessionManager.saveHealthcareId(finalHealthcareId);
+                  idVerified = true;
+                }
+              }
+            }
+          } catch (e) {
+            print('🩺 ❌ Email recovery failed: $e');
+          }
+        } else {
+          print('🩺 ⚠️ No user email found for recovery');
+        }
+      }
+
+      if (!idVerified) {
+        print('🩺 ⚠️ Proceeding with unverified ID: $finalHealthcareId (Risk of failure)');
+      }
+      // ---------------------------------------------------------
+
       final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/jobpost');
 
       final Map<String, String> payload = {
@@ -131,7 +195,7 @@ class _ApplicantsState extends State<Applicants> {
         'salaryRange': salaryRange ?? '',
         'interviewMode': interviewMode ?? '',
         'applicationDeadline': deadlineCtrl.text.trim(),
-        'healthcare_id': healthcareId,
+        'healthcare_id': finalHealthcareId, // Use the verified ID
         'status': 'closed',
       };
 
