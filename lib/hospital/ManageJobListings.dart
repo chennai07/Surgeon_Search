@@ -72,121 +72,132 @@ class _ManageJobListingsState extends State<ManageJobListings> {
     }
   }
 
-  Future<void> _fetchOverallApplicants(String healthcareId) async {
+  Future<void> _fetchOverallApplicants(String initialHealthcareId) async {
     try {
-      final uri = Uri.parse(
-        'http://13.203.67.154:3000/api/jobs/applied-jobs/overall-jobs-healthcare/$healthcareId',
-      );
-      final response = await http.get(uri);
+      // Collect all possible IDs
+      final sessionHealthcareId = await SessionManager.getHealthcareId();
+      final sessionProfileId = await SessionManager.getProfileId();
+      final sessionUserId = await SessionManager.getUserId();
 
-      print('👥 Overall Applicants response status: ${response.statusCode}');
+      final List<String> candidates = [
+        if (initialHealthcareId.isNotEmpty) initialHealthcareId,
+        if (sessionHealthcareId != null && sessionHealthcareId.isNotEmpty) sessionHealthcareId,
+        if (sessionProfileId != null && sessionProfileId.isNotEmpty) sessionProfileId,
+        if (sessionUserId != null && sessionUserId.isNotEmpty) sessionUserId,
+      ];
 
-      if (response.statusCode == 200) {
-        final body = response.body.trimLeft();
-        dynamic decoded;
-        try {
-          decoded = jsonDecode(body);
-        } catch (_) {
-          decoded = {};
-        }
+      final uniqueCandidates = candidates.toSet().toList();
+      print('👥 Fetching applicants. Candidates: $uniqueCandidates');
 
-        final data = decoded is Map && decoded['data'] != null
-            ? decoded['data']
-            : decoded;
+      List<Map<String, dynamic>> foundApplicants = [];
+      bool success = false;
+
+      for (final id in uniqueCandidates) {
+        print('👥 Trying ID: $id');
+        final uri = Uri.parse(
+          'http://13.203.67.154:3000/api/jobs/applied-jobs/overall-jobs-healthcare/$id',
+        );
         
-        // The API likely returns a list of applications
-        final list = data is List
-            ? data
-            : (data is Map && data['applications'] is List
-                ? data['applications']
-                : <dynamic>[]);
+        try {
+          final response = await http.get(uri);
+          print('👥 Response for $id: ${response.statusCode}');
 
-        final aggregated = <Map<String, dynamic>>[];
+          if (response.statusCode == 200) {
+            final body = response.body.trimLeft();
+            dynamic decoded;
+            try {
+              decoded = jsonDecode(body);
+            } catch (e) {
+              print('👥 Error decoding JSON: $e');
+              decoded = {};
+            }
 
-        for (final item in list) {
-          if (item is! Map) continue;
-          // Adjust parsing based on actual API response structure
-          // Assuming structure is similar to:
-          // { 
-          //   "_id": "...", 
-          //   "jobId": { "jobTitle": "...", "status": "..." }, 
-          //   "applicantId": { "firstName": "...", "lastName": "...", "location": "..." },
-          //   "status": "applied",
-          //   ...
-          // }
-          // OR flattened. 
-          // Let's try to handle both nested and flat structures robustly.
-          
-          final m = item as Map<String, dynamic>;
-          
-          // Debug print to see structure
-          // print('👥 Processing item: $m');
+            final data = decoded is Map && decoded['data'] != null
+                ? decoded['data']
+                : decoded;
+            
+            final list = data is List
+                ? data
+                : (data is Map && data['applications'] is List
+                    ? data['applications']
+                    : <dynamic>[]);
+            
+            print('👥 Found ${list.length} raw items for ID $id');
 
-          // Extract Job Details
-          // The API might return 'jobId' as an object or 'job' as an object
-          var jobObj = m['jobId'];
-          if (jobObj is! Map) {
-             jobObj = m['job'];
+            final aggregated = <Map<String, dynamic>>[];
+
+            for (final item in list) {
+              if (item is! Map) continue;
+              
+              final m = item as Map<String, dynamic>;
+              
+              // Extract Job Details
+              var jobObj = m['jobId'];
+              if (jobObj is! Map) {
+                 jobObj = m['job'];
+              }
+              if (jobObj is! Map) {
+                 jobObj = m; 
+              }
+
+              final jobTitle = (jobObj['jobTitle'] ?? jobObj['title'] ?? m['jobTitle'] ?? '').toString();
+              final jobStatus = (jobObj['status'] ?? m['status'] ?? 'Active').toString();
+              final jobId = (jobObj['_id'] ?? jobObj['id'] ?? m['jobId'] ?? '').toString();
+
+              // Extract Applicant Details
+              var applicantObj = m['applicantId'];
+              if (applicantObj is! Map) {
+                applicantObj = m['applicant'];
+              }
+              if (applicantObj is! Map) {
+                applicantObj = m;
+              }
+
+              final firstName = (applicantObj['firstName'] ?? applicantObj['name'] ?? '').toString();
+              final lastName = (applicantObj['lastName'] ?? '').toString();
+              final name = [firstName, lastName].where((s) => s.isNotEmpty).join(' ').trim();
+              final location = (applicantObj['location'] ?? '').toString();
+              
+              // Extract Application Details
+              final status = (m['status'] ?? 'Applied').toString();
+              final createdRaw = (m['createdAt'] ?? m['appliedOn'] ?? '').toString();
+              
+              final applicantMap = Map<String, dynamic>.from(m);
+              applicantMap['jobTitle'] = jobTitle;
+              applicantMap['jobStatus'] = jobStatus;
+              applicantMap['jobId'] = jobId;
+              applicantMap['applicantName'] = name;
+              applicantMap['applicantLocation'] = location;
+              applicantMap['status'] = status;
+              applicantMap['appliedOn'] = createdRaw;
+
+              aggregated.add(applicantMap);
+            }
+
+            foundApplicants = aggregated;
+            success = true;
+            break; // Stop if we found a valid 200 response
           }
-          if (jobObj is! Map) {
-             // If neither is a map, maybe the item itself has job details or jobId is just an ID string
-             jobObj = m; 
-          }
-
-          final jobTitle = (jobObj['jobTitle'] ?? jobObj['title'] ?? m['jobTitle'] ?? '').toString();
-          final jobStatus = (jobObj['status'] ?? m['status'] ?? 'Active').toString();
-          final jobId = (jobObj['_id'] ?? jobObj['id'] ?? m['jobId'] ?? '').toString();
-
-          // Extract Applicant Details
-          var applicantObj = m['applicantId'];
-          if (applicantObj is! Map) {
-            applicantObj = m['applicant'];
-          }
-          if (applicantObj is! Map) {
-            applicantObj = m;
-          }
-
-          final firstName = (applicantObj['firstName'] ?? applicantObj['name'] ?? '').toString();
-          final lastName = (applicantObj['lastName'] ?? '').toString();
-          final name = [firstName, lastName].where((s) => s.isNotEmpty).join(' ').trim();
-          final location = (applicantObj['location'] ?? '').toString();
-          
-          // Extract Application Details
-          final status = (m['status'] ?? 'Applied').toString();
-          final createdRaw = (m['createdAt'] ?? m['appliedOn'] ?? '').toString();
-          
-          final applicantMap = Map<String, dynamic>.from(m);
-          applicantMap['jobTitle'] = jobTitle;
-          applicantMap['jobStatus'] = jobStatus;
-          applicantMap['jobId'] = jobId;
-          applicantMap['applicantName'] = name;
-          applicantMap['applicantLocation'] = location;
-          applicantMap['status'] = status;
-          applicantMap['appliedOn'] = createdRaw;
-
-          // print('👥 Extracted: jobTitle=$jobTitle, name=$name');
-
-          aggregated.add(applicantMap);
+        } catch (e) {
+          print('👥 Error fetching for $id: $e');
         }
+      }
 
-        print('👥 Total applicants found: ${aggregated.length}');
-
-        if (!mounted) return;
+      if (!mounted) return;
+      
+      if (success) {
         setState(() {
-          _applicants = aggregated;
+          _applicants = foundApplicants;
         });
       } else {
-        print('👥 Failed to fetch applicants: ${response.statusCode}');
-        if (!mounted) return;
+        // All attempts failed or returned 404
         setState(() {
-           // If 404, maybe just empty list
-           if (response.statusCode == 404) {
-             _applicants = [];
-           } else {
-             _error = 'Failed to load applicants (${response.statusCode})';
-           }
+           _applicants = [];
+           // Optional: set error if you want to show it
+           // _error = 'Failed to load applicants';
         });
       }
+
     } catch (e) {
       print('👥 Error fetching overall applicants: $e');
       rethrow;

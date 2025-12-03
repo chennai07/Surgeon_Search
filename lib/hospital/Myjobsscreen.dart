@@ -50,12 +50,24 @@ class _MyJobsPageState extends State<MyJobsPage> {
 
     try {
       final fromWidgetId = widget.healthcareId;
-      final storedId =
-          (await SessionManager.getHealthcareId()) ?? await SessionManager.getProfileId() ?? '';
-      var healthcareId =
-          (fromWidgetId != null && fromWidgetId.isNotEmpty) ? fromWidgetId : storedId;
+      final storedHealthcareId = await SessionManager.getHealthcareId();
+      final storedProfileId = await SessionManager.getProfileId();
+      
+      // Build list of candidate IDs to try (profile_id first, then healthcare_id)
+      final candidateIds = <String>[];
+      if (storedProfileId != null && storedProfileId.isNotEmpty) {
+        candidateIds.add(storedProfileId);
+      }
+      if (storedHealthcareId != null && storedHealthcareId.isNotEmpty && storedHealthcareId != storedProfileId) {
+        candidateIds.add(storedHealthcareId);
+      }
+      if (fromWidgetId != null && fromWidgetId.isNotEmpty && !candidateIds.contains(fromWidgetId)) {
+        candidateIds.add(fromWidgetId);
+      }
 
-      if (healthcareId.isEmpty) {
+
+
+      if (candidateIds.isEmpty) {
         if (!mounted) return;
         setState(() {
           _error = 'Healthcare id not found';
@@ -64,81 +76,76 @@ class _MyJobsPageState extends State<MyJobsPage> {
         return;
       }
 
-      // Resolve the correct healthcare_id from the profile
-      try {
-        final profileUri = Uri.parse(
-            'http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId');
-        final profileRes = await http.get(profileUri);
-        if (profileRes.statusCode == 200) {
-          final body = jsonDecode(profileRes.body);
-          final data =
-              body is Map && body['data'] != null ? body['data'] : body;
-          if (data is Map) {
-            final realId = data['healthcare_id']?.toString();
-            if (realId != null && realId.isNotEmpty) {
-              healthcareId = realId;
-            }
-            // Extract hospital name
-            final name = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
-            if (name != null) {
-              _hospitalName = name.toString();
+      // Try each candidate ID until we find one that works
+      String? workingId;
+      List<Map<String, dynamic>> jobs = [];
+      
+      for (final candidateId in candidateIds) {
+        final uri = Uri.parse(
+            'http://13.203.67.154:3000/api/healthcare/joblist-healthcare/$candidateId');
+        final response = await http.get(uri);
+
+        if (response.statusCode == 200) {
+          final body = response.body.trimLeft();
+          
+          dynamic decoded;
+          try {
+            decoded = jsonDecode(body);
+          } catch (_) {
+            decoded = {};
+          }
+
+          final data = decoded is Map && decoded['data'] != null
+              ? decoded['data']
+              : decoded;
+          
+          final list = data is List
+              ? data
+              : (data is Map && data['jobs'] is List ? data['jobs'] : <dynamic>[]);
+
+          for (final item in list) {
+            if (item is Map) {
+              jobs.add(Map<String, dynamic>.from(item as Map));
             }
           }
+
+          workingId = candidateId;
+          break; // Found working ID, stop trying others
         }
-      } catch (e) {
-        debugPrint('Error resolving healthcare_id: $e');
       }
 
-      // Store the resolved ID for future use (e.g. filters)
-      _resolvedHealthcareId = healthcareId;
-
-      final uri = Uri.parse(
-          'http://13.203.67.154:3000/api/healthcare/joblist-healthcare/$healthcareId');
-      final response = await http.get(uri);
-
-      if (response.statusCode == 200) {
-        final body = response.body.trimLeft();
-        dynamic decoded;
+      // Fetch hospital profile to get hospital name using the working ID
+      if (workingId != null) {
         try {
-          decoded = jsonDecode(body);
-        } catch (_) {
-          decoded = {};
-        }
-
-        final data = decoded is Map && decoded['data'] != null
-            ? decoded['data']
-            : decoded;
-        final list = data is List
-            ? data
-            : (data is Map && data['jobs'] is List ? data['jobs'] : <dynamic>[]);
-
-        final jobs = <Map<String, dynamic>>[];
-        for (final item in list) {
-          if (item is Map) {
-            jobs.add(Map<String, dynamic>.from(item as Map));
+          final profileUri = Uri.parse(
+              'http://13.203.67.154:3000/api/healthcare/healthcare-profile/$workingId');
+          final profileRes = await http.get(profileUri);
+          if (profileRes.statusCode == 200) {
+            final body = jsonDecode(profileRes.body);
+            final data =
+                body is Map && body['data'] != null ? body['data'] : body;
+            if (data is Map) {
+              // Extract hospital name
+              final name = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
+              if (name != null) {
+                _hospitalName = name.toString();
+              }
+            }
           }
+        } catch (e) {
+          debugPrint('Error fetching hospital profile: $e');
         }
-
-        if (!mounted) return;
-        setState(() {
-          _jobs = jobs;
-          _isLoading = false;
-        });
-      } else if (response.statusCode == 404) {
-        // No jobs found for this healthcare id – treat as empty list, not an error
-        if (!mounted) return;
-        setState(() {
-          _jobs = [];
-          _error = null;
-          _isLoading = false;
-        });
-      } else {
-        if (!mounted) return;
-        setState(() {
-          _error = 'Failed to load jobs (${response.statusCode})';
-          _isLoading = false;
-        });
       }
+
+      // Store the resolved ID for future use
+      _resolvedHealthcareId = workingId;
+
+      if (!mounted) return;
+      
+      setState(() {
+        _jobs = jobs;
+        _isLoading = false;
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
