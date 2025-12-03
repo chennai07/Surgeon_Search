@@ -145,6 +145,18 @@ class _HospitalFormState extends State<HospitalForm> {
   void initState() {
     super.initState();
     _redirectIfProfileExists();
+    _autoPopulateEmail();
+  }
+
+  Future<void> _autoPopulateEmail() async {
+    final email = await SessionManager.getUserEmail();
+    if (email != null && email.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          emailController.text = email;
+        });
+      }
+    }
   }
 
   Future<void> _redirectIfProfileExists() async {

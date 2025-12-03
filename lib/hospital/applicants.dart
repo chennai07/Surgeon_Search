@@ -29,6 +29,7 @@ class _ApplicantsState extends State<Applicants> {
   String? jobType;
   String? interviewMode;
   String? salaryRange;
+  String? selectedExperience;
 
   bool agree = false;
 
@@ -191,7 +192,7 @@ class _ApplicantsState extends State<Applicants> {
         'aboutRole': aboutCtrl.text.trim(),
         'keyResponsibilities': responsibilitiesCtrl.text.trim(),
         'preferredQualifications': qualificationCtrl.text.trim(),
-        'minYearsOfExperience': experienceCtrl.text.trim(),
+        'minYearsOfExperience': selectedExperience ?? '',
         'salaryRange': salaryRange ?? '',
         'interviewMode': interviewMode ?? '',
         'applicationDeadline': deadlineCtrl.text.trim(),
@@ -454,7 +455,12 @@ class _ApplicantsState extends State<Applicants> {
             _input(qualificationCtrl, "e.g., MS Orthopedics, MCh Neurosurgery"),
 
             _label("Minimum Years of Experience Required"),
-            _input(experienceCtrl, "Experience in Years"),
+            _dropdown(
+              value: selectedExperience,
+              hint: "Select Experience (Years)",
+              items: List.generate(30, (index) => (index + 1).toString()),
+              onChanged: (v) => setState(() => selectedExperience = v),
+            ),
 
             _label("Salary Range"),
             _dropdown(

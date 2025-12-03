@@ -160,7 +160,7 @@ class HospitalFreeTrialScreen extends StatelessWidget {
                         ),
                         alignment: Alignment.center,
                         child: const Text(
-                          "Active",
+                          "Activate",
                           style: TextStyle(
                             color: Color(0xFF0052CC),
                             fontSize: 15,

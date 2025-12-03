@@ -33,6 +33,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
   @override
   void initState() {
     super.initState();
+    _fetchHospitalName();
     _fetchJobs();
   }
 
@@ -40,6 +41,37 @@ class _MyJobsPageState extends State<MyJobsPage> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _fetchHospitalName() async {
+    try {
+      String? id = widget.healthcareId;
+      if (id == null || id.isEmpty) {
+        id = await SessionManager.getHealthcareId();
+      }
+      if (id == null || id.isEmpty) {
+        id = await SessionManager.getProfileId();
+      }
+
+      if (id != null && id.isNotEmpty) {
+        final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$id');
+        final response = await http.get(uri);
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+          final data = body is Map && body['data'] != null ? body['data'] : body;
+          if (data is Map) {
+             final name = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
+             if (name != null && mounted) {
+               setState(() {
+                 _hospitalName = name.toString();
+               });
+             }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching hospital name: $e');
+    }
   }
 
   Future<void> _fetchJobs() async {
@@ -64,8 +96,6 @@ class _MyJobsPageState extends State<MyJobsPage> {
       if (fromWidgetId != null && fromWidgetId.isNotEmpty && !candidateIds.contains(fromWidgetId)) {
         candidateIds.add(fromWidgetId);
       }
-
-
 
       if (candidateIds.isEmpty) {
         if (!mounted) return;

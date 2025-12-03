@@ -5,7 +5,7 @@ import 'package:doc/model/doctor_profile_data.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:doc/hospital/Interviewpage.dart';
 
-class JobDetailScreen extends StatelessWidget {
+class JobDetailScreen extends StatefulWidget {
   final Map<String, dynamic> job;
   final void Function(Map<String, dynamic>) onEdit;
   final VoidCallback onClose;
@@ -24,12 +24,88 @@ class JobDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<JobDetailScreen> createState() => _JobDetailScreenState();
+}
+
+class _JobDetailScreenState extends State<JobDetailScreen> {
+  late Map<String, dynamic> _jobData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _jobData = widget.job;
+    _fetchJobDetails();
+  }
+
+  Future<void> _fetchJobDetails() async {
+    final rawId = _jobData['_id'] ?? _jobData['id'];
+    if (rawId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    final jobId = rawId.toString();
+
+    try {
+      final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/job-profile/$jobId');
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final data = body is Map && body['data'] != null ? body['data'] : body;
+        if (data is Map<String, dynamic>) {
+          if (mounted) {
+            setState(() {
+              _jobData = data;
+              _isLoading = false;
+            });
+          }
+        }
+      } else {
+        debugPrint('Failed to fetch job details: ${response.statusCode}');
+        if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching job details: $e');
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    // local presentation values (not mutable here)
+    final job = _jobData;
+    // Use fetched data or fallbacks
+    final title = job['jobTitle'] ?? job['title'] ?? 'Job Title';
+    final postedOn = job['postedOn'] ?? ''; // You might need to format this date
+    final location = job['location'] ?? 'Location';
+    final experience = job['minYearsOfExperience'] != null ? '${job['minYearsOfExperience']} Years' : 'Experience';
+    final jobType = job['jobType'] ?? 'Full Time';
+    final salary = job['salaryRange'] ?? 'Salary';
+    final department = job['department'] ?? 'N/A';
+    final subSpeciality = job['subSpeciality'] ?? 'N/A';
+    final interviewMode = job['interviewMode'] ?? 'In-person';
+    final aboutRole = job['aboutRole'] ?? 'N/A';
+    final responsibilities = job['keyResponsibilities'] ?? '';
+    final qualifications = job['preferredQualifications'] ?? '';
+    String deadline = job['applicationDeadline'] ?? 'N/A';
+    if (deadline != 'N/A' && deadline.contains('T')) {
+      deadline = deadline.split('T')[0];
+    }
+    
+    // Hospital Name - try to get from healthcare_id if populated, otherwise hardcoded fallback or from job map
+    // The API might return healthcare_id as an object if populated, or just an ID string.
+    // For now, we'll check if it's a map and has a name.
+    String hospitalName = "Hospital"; 
+    if (job['healthcare_id'] is Map) {
+       hospitalName = job['healthcare_id']['hospitalName'] ?? job['healthcare_id']['name'] ?? "Hospital";
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
+        child: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : Column(
           children: [
             // Top bar + posted date + action
             Padding(
@@ -50,13 +126,14 @@ class JobDetailScreen extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        "Posted on ${(job['postedOn'] ?? '').toString()}",
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black54,
+                      if (postedOn.isNotEmpty)
+                        Text(
+                          "Posted on $postedOn",
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.black54,
+                          ),
                         ),
-                      ),
                       const SizedBox(height: 8),
                     ],
                   ),
@@ -108,7 +185,7 @@ class JobDetailScreen extends StatelessWidget {
                     Center(child: Image.asset("assets/logo.png", height: 90)),
                     const SizedBox(height: 8),
                     Text(
-                      (job['jobTitle'] ?? job['title'] ?? '').toString(),
+                      title,
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 20,
@@ -119,14 +196,14 @@ class JobDetailScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _iconText(Icons.local_hospital, "Apollo Hospital"),
+                        _iconText(Icons.local_hospital, hospitalName),
                         const SizedBox(width: 18),
                         _iconText(
                           Icons.location_on_outlined,
-                          job['location'] ?? "",
+                          location,
                         ),
                         const SizedBox(width: 18),
-                        _iconText(Icons.school, job['experience'] ?? ""),
+                        _iconText(Icons.school, experience),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -156,7 +233,7 @@ class JobDetailScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  job['type'] ?? 'Full Time',
+                                  jobType,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -180,13 +257,13 @@ class JobDetailScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 const Icon(
-                                  Icons.attach_money,
+                                  Icons.currency_rupee, // Changed to Rupee
                                   color: Colors.white,
                                   size: 26,
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  job['salary'] ?? '₹28,00,000 / yr',
+                                  salary,
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
@@ -202,29 +279,19 @@ class JobDetailScreen extends StatelessWidget {
 
                     const SizedBox(height: 20),
                     _sectionTitle("Department:"),
-                    _sectionText(job['department'] ?? ''),
+                    _sectionText(department),
                     _sectionTitle("Sub-Speciality:"),
-                    _sectionText(job['subSpeciality'] ?? ''),
+                    _sectionText(subSpeciality),
                     _sectionTitle("Interview Mode:"),
-                    _sectionText("In-person"),
+                    _sectionText(interviewMode),
                     _sectionTitle("About the Role:"),
-                    _sectionText(job['description'] ?? ''),
+                    _sectionText(aboutRole),
                     _sectionTitle("Key Responsibilities:"),
-                    _bulletList([
-                      "Evaluate patients and perform assessments.",
-                      "Conduct surgeries with precision.",
-                      "Provide pre- and post-operative care.",
-                      "Collaborate with multi-disciplinary teams.",
-                      "Stay updated with latest clinical advancements.",
-                    ]),
+                    _sectionText(responsibilities), // Displaying as text
                     _sectionTitle("Preferred Qualifications:"),
-                    _bulletList([
-                      "MBBS with relevant specialization.",
-                      "Registration with Medical Council.",
-                      "Minimum 5 years of experience preferred.",
-                    ]),
+                    _sectionText(qualifications), // Displaying as text
                     _sectionTitle("Application Deadline:"),
-                    _sectionText(job['deadline'] ?? ''),
+                    _sectionText(deadline),
                     const SizedBox(height: 30),
                     SizedBox(
                       width: double.infinity,
@@ -236,7 +303,7 @@ class JobDetailScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        onPressed: onViewApplicants,
+                        onPressed: widget.onViewApplicants,
                         child: const Text(
                           "View Applicants",
                           style: TextStyle(
@@ -343,7 +410,7 @@ class JobDetailScreen extends StatelessWidget {
                 title: const Text("Close Job"),
                 onTap: () {
                   Navigator.pop(ctx);
-                  onClose();
+                  widget.onClose();
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text("Job marked Closed")),
                   );
@@ -366,10 +433,10 @@ class JobDetailScreen extends StatelessWidget {
 
   void _showEditDialog(BuildContext context) {
     final titleController = TextEditingController(
-      text: (job['jobTitle'] ?? job['title'] ?? '').toString(),
+      text: (_jobData['jobTitle'] ?? _jobData['title'] ?? '').toString(),
     );
     final deadlineController = TextEditingController(
-      text: (job['deadline'] ?? '').toString(),
+      text: (_jobData['deadline'] ?? '').toString(),
     );
     showDialog(
       context: context,
@@ -395,7 +462,7 @@ class JobDetailScreen extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              final jobId = (job['_id'] ?? job['id'] ?? '').toString();
+              final jobId = (_jobData['_id'] ?? _jobData['id'] ?? '').toString();
               if (jobId.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Job id not found')), 
@@ -421,7 +488,7 @@ class JobDetailScreen extends StatelessWidget {
                 );
 
                 if (response.statusCode == 200 || response.statusCode == 201) {
-                  onEdit({
+                  widget.onEdit({
                     'jobTitle': titleController.text,
                     'title': titleController.text,
                     'deadline': deadlineController.text,
@@ -466,7 +533,7 @@ class JobDetailScreen extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () {
-              onDelete();
+              widget.onDelete();
               Navigator.pop(context); // close dialog
               Navigator.pop(context); // close detail screen
               ScaffoldMessenger.of(context).showSnackBar(
