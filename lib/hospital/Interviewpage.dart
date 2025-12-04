@@ -221,12 +221,7 @@ class _ScheduleInterviewPageState extends State<ScheduleInterviewPage> {
               ),
               const SizedBox(height: 12),
 
-              const Text(
-                "Address: Apollo Spectra Hospitals, 143, 1st Cross Rd, near\n"
-                "Nagarjuna Hotel, KHB Colony, 5th Block, Koramangala,\n"
-                "Bengaluru, Karnataka 560095",
-                style: TextStyle(fontSize: 14, color: Colors.black87),
-              ),
+              const SizedBox(height: 12),
 
               const SizedBox(height: 25),
 

@@ -389,7 +389,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     );
   }
 
-  // Take Action menu: shows Edit / Close / Delete (mock)
+  // Take Action menu: shows Job filled / Extended / Closed
   void _showTakeActionMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -398,30 +398,27 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
           child: Wrap(
             children: [
               ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text("Edit Job"),
+                leading: const Icon(Icons.check_circle_outline, color: Colors.green),
+                title: const Text("Job filled"),
                 onTap: () {
                   Navigator.pop(ctx);
-                  _showEditDialog(context);
+                  _updateJobStatus("job filled");
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.close),
-                title: const Text("Close Job"),
+                leading: const Icon(Icons.access_time, color: Colors.orange),
+                title: const Text("Extended"),
                 onTap: () {
                   Navigator.pop(ctx);
-                  widget.onClose();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Job marked Closed")),
-                  );
+                  _handleExtendJob(context);
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.delete, color: Colors.red),
-                title: const Text("Delete Job"),
+                leading: const Icon(Icons.cancel_outlined, color: Colors.red),
+                title: const Text("Closed"),
                 onTap: () {
                   Navigator.pop(ctx);
-                  _confirmDelete(context);
+                  _updateJobStatus("closed");
                 },
               ),
             ],
@@ -429,6 +426,85 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         );
       },
     );
+  }
+
+  Future<void> _handleExtendJob(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 30)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+    );
+
+    if (picked != null) {
+      // Format date as YYYY-MM-DD
+      final formattedDate = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      _updateJobStatus("extended", deadline: formattedDate);
+    }
+  }
+
+  Future<void> _updateJobStatus(String status, {String? deadline}) async {
+    final jobId = (_jobData['_id'] ?? _jobData['id'] ?? '').toString();
+    if (jobId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Job id not found')),
+      );
+      return;
+    }
+
+    // Use the endpoint provided by the user
+    final uri = Uri.parse(
+      'http://13.203.67.154:3000/api/healthcare/job-edit/$jobId',
+    );
+
+    final Map<String, dynamic> payload = {
+      'status': status,
+    };
+
+    if (deadline != null) {
+      payload['applicationDeadline'] = deadline;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          setState(() {
+            _jobData['status'] = status;
+            if (deadline != null) {
+              _jobData['applicationDeadline'] = deadline;
+            }
+            _isLoading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Job marked as $status')),
+          );
+          // If extended, we might want to refresh the UI to show the new deadline immediately
+          // The setState above updates the local map, so the UI should rebuild.
+        }
+      } else {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to update job: ${response.statusCode}')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating job: $e')),
+        );
+      }
+    }
   }
 
   void _showEditDialog(BuildContext context) {

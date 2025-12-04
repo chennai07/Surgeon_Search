@@ -12,6 +12,7 @@ import 'package:dropdown_search/dropdown_search.dart';
 import 'package:doc/model/indian_states_districts.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/Subscription Plan Screen/subscription_planScreen.dart';
+import 'package:doc/homescreen/SearchjobScreen.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
  
 const Map<String, List<String>> surgicalSpecialities = {
@@ -705,6 +706,25 @@ Widget build(BuildContext context) {
       centerTitle: false,
       backgroundColor: Colors.white,
       elevation: 0,
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => const SearchScreen()),
+            );
+          },
+          child: const Text(
+            "Skip",
+            style: TextStyle(
+              color: Colors.blueAccent,
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+      ],
     ),
     body: isLoading
         ? const Center(child: CircularProgressIndicator())

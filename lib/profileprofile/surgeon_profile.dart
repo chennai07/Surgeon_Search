@@ -7,6 +7,7 @@ import 'package:doc/utils/session_manager.dart';
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/homescreen/SearchjobScreen.dart';
 import 'package:doc/homescreen/Applied_Jobs.dart';
+import 'package:doc/profileprofile/surgeon_form.dart';
 
 import 'package:doc/utils/subscription_guard.dart';
 
@@ -40,17 +41,104 @@ class _ProfessionalProfileViewPageState
           _isLoading = false;
         });
       } else {
+        // Fallback to empty profile with session data
+        final name = await SessionManager.getUserName() ?? '';
+        final phone = await SessionManager.getUserPhone() ?? '';
+        final email = await SessionManager.getUserEmail() ?? '';
+
         setState(() {
-          _error = result['message'] ?? 'Failed to load profile';
+          _profile = DoctorProfileData(
+            name: name,
+            speciality: '',
+            summary: '',
+            degree: '',
+            subSpeciality: '',
+            designation: '',
+            organization: '',
+            period: '',
+            workLocation: '',
+            phone: phone,
+            email: email,
+            location: '',
+            portfolio: '',
+            profilePicture: '',
+          );
+          _error = null;
           _isLoading = false;
         });
       }
     } catch (e) {
+      // Fallback on error
+      final name = await SessionManager.getUserName() ?? '';
+      final phone = await SessionManager.getUserPhone() ?? '';
+      final email = await SessionManager.getUserEmail() ?? '';
+
       setState(() {
-        _error = 'Error loading profile: $e';
+        _profile = DoctorProfileData(
+          name: name,
+          speciality: '',
+          summary: '',
+          degree: '',
+          subSpeciality: '',
+          designation: '',
+          organization: '',
+          period: '',
+          workLocation: '',
+          phone: phone,
+          email: email,
+          location: '',
+          portfolio: '',
+          profilePicture: '',
+        );
+        _error = null;
         _isLoading = false;
       });
     }
+  }
+
+  double _calculateCompletion() {
+    if (_profile == null) return 0.0;
+    int total = 10;
+    int filled = 0;
+
+    if (_profile!.name.isNotEmpty) filled++;
+    if (_profile!.speciality.isNotEmpty) filled++;
+    if (_profile!.degree.isNotEmpty) filled++;
+    if (_profile!.phone.isNotEmpty) filled++;
+    if (_profile!.email.isNotEmpty) filled++;
+    if (_profile!.location.isNotEmpty) filled++;
+    if (_profile!.summary.isNotEmpty) filled++;
+    if (_profile!.profilePicture.isNotEmpty) filled++;
+    if (_profile!.designation.isNotEmpty) filled++;
+    if (_profile!.organization.isNotEmpty) filled++;
+
+    return filled / total;
+  }
+
+  void _navigateToEdit() {
+    final data = {
+      'fullName': _profile?.name,
+      'speciality': _profile?.speciality,
+      'subSpeciality': _profile?.subSpeciality,
+      'degree': _profile?.degree,
+      'summaryProfile': _profile?.summary,
+      'phoneNumber': _profile?.phone,
+      'email': _profile?.email,
+      'location': _profile?.location,
+      'portfolioLinks': _profile?.portfolio,
+      'profilePicture': _profile?.profilePicture,
+      'yearsOfExperience': _profile?.period, // Assuming period maps roughly to experience or we leave it blank
+    };
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SurgeonForm(
+          profileId: widget.profileId,
+          existingData: data,
+        ),
+      ),
+    ).then((_) => _loadProfile());
   }
 
   Future<void> _logout() async {
@@ -72,36 +160,7 @@ class _ProfessionalProfileViewPageState
       );
     }
 
-    if (_error != null || _profile == null) {
-      return Scaffold(
-        backgroundColor: Colors.white,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: const Text("Doctor Profile", style: TextStyle(color: Colors.black)),
-          centerTitle: true,
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(_error ?? 'Profile not found'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _logout,
-                child: const Text('Logout'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    // No error check needed here as we fallback to empty profile
 
     // Display the doctor profile directly in this widget
     return Scaffold(
@@ -120,7 +179,11 @@ class _ProfessionalProfileViewPageState
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-
+          IconButton(
+            icon: const Icon(Iconsax.edit, color: Colors.blueAccent),
+            onPressed: _navigateToEdit,
+            tooltip: 'Edit Profile',
+          ),
           IconButton(
             icon: const Icon(Iconsax.logout, color: Colors.redAccent),
             onPressed: _logout,
@@ -149,6 +212,8 @@ class _ProfessionalProfileViewPageState
               child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _buildProgressBar(),
+            const SizedBox(height: 20),
             Center(
               child: Container(
                 width: 120,
@@ -320,6 +385,59 @@ class _ProfessionalProfileViewPageState
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildProgressBar() {
+    final progress = _calculateCompletion();
+    final percentage = (progress * 100).toInt();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "Profile Completion",
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade900,
+                ),
+              ),
+              Text(
+                "$percentage%",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: progress,
+            backgroundColor: Colors.white,
+            color: Colors.blueAccent,
+            minHeight: 8,
+            borderRadius: BorderRadius.circular(4),
+          ),
+          if (percentage < 100) ...[
+            const SizedBox(height: 8),
+            Text(
+              "Complete your profile to get better job recommendations.",
+              style: TextStyle(fontSize: 12, color: Colors.blue.shade800),
+            ),
+          ]
+        ],
       ),
     );
   }

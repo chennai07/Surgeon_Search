@@ -21,6 +21,10 @@ class HospitalProfile extends StatefulWidget {
 }
 
 class _HospitalProfileState extends State<HospitalProfile> {
+  Map<String, dynamic> _profileData = {};
+  bool _isLoadingProfile = true;
+  String? _profileError;
+
   List<Map<String, dynamic>> _jobs = [];
   bool _isLoadingJobs = true;
   String? _jobsError;
@@ -28,7 +32,53 @@ class _HospitalProfileState extends State<HospitalProfile> {
   @override
   void initState() {
     super.initState();
+    _profileData = widget.data;
+    _fetchProfile();
     _fetchJobs();
+  }
+
+  Future<void> _fetchProfile() async {
+    final healthcareId = widget.data['healthcare_id']?.toString() ??
+        widget.data['_id']?.toString() ??
+        '';
+
+    if (healthcareId.isEmpty) {
+      setState(() {
+        _profileError = 'Healthcare ID missing';
+        _isLoadingProfile = false;
+      });
+      return;
+    }
+
+    try {
+      final uri = Uri.parse(
+          'http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId');
+      print('🏥 Fetching profile from: $uri');
+      
+      final response = await http.get(uri);
+      print('🏥 Profile API response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        final data = body is Map && body['data'] != null ? body['data'] : body;
+        
+        if (data is Map<String, dynamic>) {
+          if (mounted) {
+            setState(() {
+              // Merge existing data with fetched data, fetched takes precedence
+              _profileData = {..._profileData, ...data};
+              _isLoadingProfile = false;
+            });
+          }
+        }
+      } else {
+        print('🏥 Failed to fetch profile: ${response.statusCode}');
+        if (mounted) setState(() => _isLoadingProfile = false);
+      }
+    } catch (e) {
+      print('🏥 Error fetching profile: $e');
+      if (mounted) setState(() => _isLoadingProfile = false);
+    }
   }
 
   Future<void> _fetchJobs() async {
@@ -119,6 +169,13 @@ class _HospitalProfileState extends State<HospitalProfile> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoadingProfile) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -172,7 +229,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
 
             // ✅ Hospital Name & City
             Text(
-              (widget.data['hospitalName'] ?? '').toString(),
+              (_profileData['hospitalName'] ?? '').toString(),
               style: GoogleFonts.poppins(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -181,7 +238,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
             ),
             const SizedBox(height: 3),
             Text(
-              (widget.data['location'] ?? '').toString(),
+              (_profileData['location'] ?? '').toString(),
               style: GoogleFonts.poppins(fontSize: 14, color: Colors.blue),
             ),
 
@@ -192,17 +249,17 @@ class _HospitalProfileState extends State<HospitalProfile> {
               alignment: WrapAlignment.spaceBetween,
               runSpacing: 15,
               children: [
-                _contactInfo(Iconsax.sms, "Email", (widget.data['email'] ?? '').toString()),
+                _contactInfo(Iconsax.sms, "Email", (_profileData['email'] ?? '').toString()),
                 _contactInfo(
                   Iconsax.global,
                   "Website",
-                  (widget.data['hospitalWebsite'] ?? '').toString(),
+                  (_profileData['hospitalWebsite'] ?? '').toString(),
                 ),
-                _contactInfo(Iconsax.call, "Phone", (widget.data['phoneNumber'] ?? '').toString()),
+                _contactInfo(Iconsax.call, "Phone", (_profileData['phoneNumber'] ?? '').toString()),
                 _contactInfo(
                   Iconsax.location,
                   "Address",
-                  (widget.data['location'] ?? '').toString(),
+                  (_profileData['location'] ?? '').toString(),
                 ),
               ],
             ),
@@ -222,7 +279,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
             ),
             const SizedBox(height: 8),
             Text(
-              (widget.data['hospitalOverview'] ?? '').toString(),
+              (_profileData['hospitalOverview'] ?? '').toString(),
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 color: Colors.black87,
@@ -248,7 +305,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
               spacing: 8,
               runSpacing: 8,
               children: [
-                ...List<String>.from((widget.data['departmentsAvailable'] ?? const []))
+                ...List<String>.from((_profileData['departmentsAvailable'] ?? const []))
                     .map((d) => _departmentChip(d))
                     .toList(),
               ],
@@ -394,8 +451,8 @@ class _HospitalProfileState extends State<HospitalProfile> {
   Widget _jobCard(Map<String, dynamic> job) {
     // Extract job data
     final jobTitle = job['jobTitle']?.toString() ?? 'Job Opening';
-    final hospitalName = widget.data['hospitalName']?.toString() ?? 'Hospital';
-    final location = job['location']?.toString() ?? widget.data['location']?.toString() ?? 'Location';
+    final hospitalName = _profileData['hospitalName']?.toString() ?? 'Hospital';
+    final location = job['location']?.toString() ?? _profileData['location']?.toString() ?? 'Location';
     final aboutRole = job['aboutRole']?.toString() ?? 'No description available';
     final subSpeciality = job['subSpeciality']?.toString() ?? '';
     final employmentType = job['employmentType']?.toString() ?? '';
