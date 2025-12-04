@@ -4,6 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:doc/model/doctor_profile_data.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:doc/hospital/Interviewpage.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:iconsax/iconsax.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final Map<String, dynamic> job;
@@ -640,70 +642,170 @@ class ApplicantsListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text("Applicants for ${jobTitle.isNotEmpty ? jobTitle : jobId}"),
-        backgroundColor: Colors.blue,
+        elevation: 0,
+        backgroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, size: 20, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          "Applicants",
+          style: GoogleFonts.poppins(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        centerTitle: true,
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.all(12),
-        itemCount: applicants.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
-        itemBuilder: (context, index) {
-          final a = applicants[index];
-          final firstName = (a['firstName'] ?? a['name'] ?? '').toString();
-          final lastName = (a['lastName'] ?? '').toString();
-          final name = [firstName, lastName]
-              .where((s) => s.isNotEmpty)
-              .join(' ')
-              .trim();
-          final experience = (a['experience'] ?? '').toString();
-          final createdRaw =
-              (a['createdAt'] ?? a['appliedOn'] ?? '').toString();
-          final appliedOn = createdRaw.contains('T')
-              ? createdRaw.split('T').first
-              : createdRaw;
-          final status = (a['status'] ?? '').toString();
-          final isShortlisted = status.toLowerCase() == 'shortlisted';
-          return ListTile(
-            tileColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            leading: CircleAvatar(
-              child: Text(
-                name.isNotEmpty ? name[0] : '?',
-              ),
-            ),
-            title: Text(name.isNotEmpty ? name : 'Unknown'),
-            subtitle: Text(
-              "${experience.isNotEmpty ? experience : 'Experience N/A'} • ${appliedOn.isNotEmpty ? appliedOn : 'Date N/A'}",
-            ),
-            trailing: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              decoration: BoxDecoration(
-                color:
-                    isShortlisted ? Colors.green[100] : const Color(0xffe8f1ff),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                status.isNotEmpty ? status : 'N/A',
-                style: const TextStyle(color: Colors.blue),
-              ),
-            ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ApplicantProfilePage(
-                    applicant: a,
-                    jobId: jobId,
+      body: applicants.isEmpty
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Iconsax.people, size: 64, color: Colors.grey[300]),
+                  const SizedBox(height: 16),
+                  Text(
+                    "No applicants yet",
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey[500],
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-              );
-            },
-          );
-        },
-      ),
+                ],
+              ),
+            )
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: applicants.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final a = applicants[index];
+                final firstName = (a['firstName'] ?? a['name'] ?? '').toString();
+                final lastName = (a['lastName'] ?? '').toString();
+                final name = [firstName, lastName]
+                    .where((s) => s.isNotEmpty)
+                    .join(' ')
+                    .trim();
+                final experience = (a['experience'] ?? '').toString();
+                final createdRaw =
+                    (a['createdAt'] ?? a['appliedOn'] ?? '').toString();
+                final appliedOn = createdRaw.contains('T')
+                    ? createdRaw.split('T').first
+                    : createdRaw;
+                final status = (a['status'] ?? 'Pending').toString();
+                final isShortlisted = status.toLowerCase() == 'shortlisted';
+
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ApplicantProfilePage(
+                              applicant: a,
+                              jobId: jobId,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 50,
+                              height: 50,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE0F0FF),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                  style: GoogleFonts.poppins(
+                                    color: const Color(0xFF0062FF),
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name.isNotEmpty ? name : 'Unknown Candidate',
+                                    style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(Iconsax.calendar_1,
+                                          size: 14, color: Colors.grey[500]),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        appliedOn.isNotEmpty ? appliedOn : "N/A",
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isShortlisted
+                                    ? const Color(0xFFE8F5E9)
+                                    : const Color(0xFFFFF3E0),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                status.isNotEmpty ? status : 'Pending',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: isShortlisted
+                                      ? Colors.green[700]
+                                      : Colors.orange[800],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
@@ -727,6 +829,8 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
   bool _isLoadingProfile = true;
   DoctorProfileData? _profile;
   String? _error;
+
+  bool _isRejecting = false;
 
   @override
   void initState() {
@@ -762,6 +866,105 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
         _error = 'Error loading profile: $e';
         _isLoadingProfile = false;
       });
+    }
+  }
+
+  void _confirmReject() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reject Application'),
+        content: const Text(
+            'Are you sure you want to reject this application? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () {
+              Navigator.pop(ctx);
+              _rejectApplication();
+            },
+            child: const Text('Reject'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _rejectApplication() async {
+    final applicationId = widget.applicant['_id']?.toString() ??
+        widget.applicant['id']?.toString() ??
+        '';
+    final healthcareId = widget.applicant['healthcare_id']?.toString() ?? '';
+    
+    print('------------------------------------------------');
+    print('🔴 Rejecting Application');
+    print('🔴 Applicant Data: ${widget.applicant}');
+    print('🔴 Application ID: $applicationId');
+    print('🔴 Healthcare ID: $healthcareId');
+    print('------------------------------------------------');
+
+    if (applicationId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Application ID not found')),
+      );
+      return;
+    }
+
+    setState(() => _isRejecting = true);
+
+    try {
+      // User hint: "end params - healthcare_id"
+      // Attempting to use healthcare_id in URL if available, otherwise fallback to applicationId (though that failed with 404)
+      final idToUse = healthcareId.isNotEmpty ? healthcareId : applicationId;
+      
+      final uri = Uri.parse(
+          'http://13.203.67.154:3000/api/jobs/applied-jobs/jobs-edit/$idToUse');
+      
+      print('🔴 Request URL: $uri');
+
+      final body = {
+        'status': 'rejected',
+        'applicationId': applicationId, // Sending applicationId in body just in case
+      };
+      
+      print('🔴 Request Body: $body');
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      print('🔴 Response Status: ${response.statusCode}');
+      print('🔴 Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Application rejected')),
+          );
+          Navigator.pop(context); // Go back to list
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to reject: ${response.statusCode}')),
+          );
+          setState(() => _isRejecting = false);
+        }
+      }
+    } catch (e) {
+      print('🔴 Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+        setState(() => _isRejecting = false);
+      }
     }
   }
 
@@ -803,20 +1006,20 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+            icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
             onPressed: () => Navigator.pop(context),
           ),
-          title:
-              const Text("Applicant Profile", style: TextStyle(color: Colors.black)),
+          title: Text("Applicant Profile",
+              style: GoogleFonts.poppins(color: Colors.black, fontWeight: FontWeight.w600)),
           centerTitle: true,
         ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const Icon(Iconsax.warning_2, size: 64, color: Colors.red),
               const SizedBox(height: 16),
-              Text(_error ?? 'Profile not found'),
+              Text(_error ?? 'Profile not found', style: GoogleFonts.poppins()),
             ],
           ),
         ),
@@ -831,14 +1034,18 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           "Applicant Profile",
-          style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black),
+          style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600, color: Colors.black, fontSize: 18),
         ),
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, size: 20, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -846,10 +1053,23 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Center(
-              child: CircleAvatar(
-                radius: 60,
-                backgroundColor: Colors.blueAccent.withOpacity(0.1),
-                child: const Icon(Icons.person, size: 50, color: Colors.grey),
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFE0F0FF),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                    style: GoogleFonts.poppins(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF0062FF),
+                    ),
+                  ),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -859,97 +1079,156 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
                 children: [
                   Text(
                     displayName.isNotEmpty ? displayName : 'Applicant Name',
-                    style: const TextStyle(
+                    style: GoogleFonts.poppins(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    speciality.isNotEmpty
-                        ? speciality
-                        : 'Speciality not provided',
-                    style: const TextStyle(
-                      color: Colors.black54,
+                    speciality.isNotEmpty ? speciality : 'Speciality not provided',
+                    style: GoogleFonts.poppins(
+                      color: Colors.grey[600],
                       fontSize: 16,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
-            const Divider(),
+            const SizedBox(height: 24),
+            const Divider(height: 1),
+            const SizedBox(height: 24),
 
             _infoHeader("Personal Information"),
-            _infoTile(Icons.call, "Phone", profile?.phone),
-            _infoTile(Icons.email, "Email", profile?.email),
-            _infoTile(Icons.location_on, "Location",
+            _infoTile(Iconsax.call, "Phone", profile?.phone),
+            _infoTile(Iconsax.sms, "Email", profile?.email),
+            _infoTile(Iconsax.location, "Location",
                 profile?.location.isNotEmpty == true ? profile!.location : location),
 
             const SizedBox(height: 10),
             _infoHeader("Professional Details"),
-            _infoTile(Icons.school, "Degree", profile?.degree),
-            _infoTile(Icons.work_outline, "Sub-Speciality", profile?.subSpeciality),
-            _infoTile(Icons.apartment, "Organization", profile?.organization),
-            _infoTile(Icons.badge_outlined, "Designation", profile?.designation),
-            _infoTile(Icons.location_city, "Work Location", profile?.workLocation),
-            _infoTile(Icons.calendar_today, "Experience", profile?.period),
-            _infoTile(Icons.link, "Portfolio", profile?.portfolio),
+            _infoTile(Iconsax.teacher, "Degree", profile?.degree),
+            _infoTile(Iconsax.briefcase, "Sub-Speciality", profile?.subSpeciality),
+            _infoTile(Iconsax.building, "Organization", profile?.organization),
+            _infoTile(Iconsax.verify, "Designation", profile?.designation),
+            _infoTile(Iconsax.map, "Work Location", profile?.workLocation),
+            _infoTile(Iconsax.clock, "Experience", profile?.period),
+            _infoTile(Iconsax.link, "Portfolio", profile?.portfolio),
 
             const SizedBox(height: 16),
             _infoHeader("Summary"),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
+                color: const Color(0xFFF5F7FA),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
                 profile != null && profile.summary.isNotEmpty
                     ? profile.summary
                     : "No summary provided",
-                style: const TextStyle(
-                  fontSize: 15,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
                   color: Colors.black87,
-                  height: 1.4,
+                  height: 1.6,
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             _infoHeader("Application Details"),
-            _infoTile(Icons.event,
-                "Applied On", appliedOn.isNotEmpty ? appliedOn : 'N/A'),
-            _infoTile(Icons.info_outline,
-                "Status", status.isNotEmpty ? status : 'N/A'),
-            _infoTile(Icons.notes, "Notes", notes.isNotEmpty ? notes : null),
+            _infoTile(Iconsax.calendar_1, "Applied On",
+                appliedOn.isNotEmpty ? appliedOn : 'N/A'),
+            _infoTile(Iconsax.info_circle, "Status",
+                status.isNotEmpty ? status : 'N/A'),
+            _infoTile(Iconsax.note, "Notes", notes.isNotEmpty ? notes : null),
 
-            const SizedBox(height: 10),
-            const Text("Resume",
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 8),
-            ListTile(
-              tileColor: const Color(0xfff8f9ff),
-              leading: const Icon(Icons.picture_as_pdf),
-              title: Text(
-                resume.isNotEmpty
-                    ? resume.split('/').last
-                    : 'No resume uploaded',
+            const SizedBox(height: 20),
+            Text("Resume",
+                style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600, fontSize: 16)),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              subtitle: Text(
-                resume.isNotEmpty ? 'Tap to view' : 'No file available',
-              ),
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Opening resume...')),
+              child: ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEE),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Iconsax.document_text,
+                      color: Colors.redAccent),
+                ),
+                title: Text(
+                  resume.isNotEmpty
+                      ? resume.split('/').last
+                      : 'No resume uploaded',
+                  style: GoogleFonts.poppins(
+                      fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                subtitle: Text(
+                  resume.isNotEmpty ? 'Tap to view' : 'No file available',
+                  style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+                ),
+                onTap: () {
+                  if (resume.isNotEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Opening resume...')),
+                    );
+                  }
+                },
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 56,
+              child: OutlinedButton(
+                onPressed: _isRejecting ? null : _confirmReject,
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: _isRejecting
+                    ? const SizedBox(
+                        height: 24,
+                        width: 24,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.red,
+                        ),
+                      )
+                    : Text(
+                        'Reject Application',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          color: Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 56,
               child: ElevatedButton(
                 onPressed: () {
                   Navigator.push(
@@ -957,21 +1236,23 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
                     MaterialPageRoute(
                       builder: (_) => ScheduleInterviewPage(
                         jobId: widget.jobId,
-                        candidateId: (widget.applicant['surgeonprofile_id'] ?? '')
-                            .toString(),
+                        candidateId:
+                            (widget.applicant['surgeonprofile_id'] ?? '')
+                                .toString(),
                       ),
                     ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
+                  backgroundColor: const Color(0xFF0062FF),
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Schedule Interview',
-                  style: TextStyle(
+                  style: GoogleFonts.poppins(
                     fontSize: 16,
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -979,7 +1260,7 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -988,13 +1269,13 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
 
   Widget _infoHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.only(top: 10, bottom: 6),
+      padding: const EdgeInsets.only(top: 10, bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 18,
+        style: GoogleFonts.poppins(
+          fontSize: 16,
           fontWeight: FontWeight.w600,
-          color: Colors.blueAccent,
+          color: const Color(0xFF0062FF),
         ),
       ),
     );
@@ -1003,29 +1284,36 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
   Widget _infoTile(IconData icon, String label, String? value) {
     if (value == null || value.isEmpty) return const SizedBox();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Colors.blueAccent),
-          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7FA),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 18, color: Colors.grey[700]),
+          ),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: Colors.grey[600],
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 15,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
                     color: Colors.black87,
                     fontWeight: FontWeight.w500,
                   ),

@@ -965,7 +965,7 @@ Widget build(BuildContext context) {
                     validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                   ),
 
-                  titleText("Surgical experience"),
+                  titleText("Surgical experience (no of cases attended)"),
                   DropdownButtonFormField<String>(
                     value: selectedSurgicalExperience,
                     items: expOptions.map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),

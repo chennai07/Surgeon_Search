@@ -74,6 +74,12 @@ class _AppliedJobsScreenState extends State<AppliedJobsScreen> {
         for (final item in list) {
           if (item is! Map) continue;
           final m = item;
+          
+          print('------------------------------------------------');
+          print('🔍 Processing Applied Job Item:');
+          print('📄 Raw Item: $m');
+          print('📄 Status Field: ${m['status']}');
+          print('------------------------------------------------');
 
           // 🔍 Improved Job ID Extraction
           String? jobId;
@@ -376,12 +382,13 @@ class _AppliedJobsScreenState extends State<AppliedJobsScreen> {
     String statusText = status;
 
     if (status.toLowerCase().contains('interview')) {
-      statusColor = const Color(0xFF00C4B4); // Teal
+      statusColor = const Color(0xFF00C853); // Green for Interview
       statusText = "Interview Scheduled";
-    } else if (status.toLowerCase().contains('decline') || status.toLowerCase().contains('reject')) {
-      statusColor = const Color(0xFFFF914D); // Orange
-      statusText = "Application Declined";
+    } else if (status.toLowerCase().contains('reject')) {
+      statusColor = const Color(0xFFFF3B30); // Red for Rejected
+      statusText = "Application Rejected";
     } else {
+      statusColor = const Color(0xFF0062FF); // Blue for Applied
       statusText = "Applied";
     }
 
