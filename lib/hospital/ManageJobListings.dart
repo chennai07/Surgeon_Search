@@ -210,6 +210,9 @@ class _ManageJobListingsState extends State<ManageJobListings> {
     final hospitalName = widget.hospitalData?['hospitalName']?.toString() ?? 
                         widget.hospitalData?['name']?.toString() ?? 
                         'Hospital';
+    
+    // Get hospital logo from hospitalData
+    final hospitalLogoUrl = widget.hospitalData?['hospitalLogo']?.toString();
 
     print('👥 BUILD: Total applicants: ${_applicants.length}');
     print('👥 BUILD: Current tab: $tabIndex (0=Active, 1=Closed)');
@@ -276,12 +279,29 @@ class _ManageJobListingsState extends State<ManageJobListings> {
                   ),
                   child: Row(
                     children: [
-                      // keep asset image path same as yours
-                      Image.asset(
-                        "assets/logo.png",
-                        height: 40,
-                        width: 40,
-                        fit: BoxFit.contain,
+                      // Hospital Logo
+                      ClipOval(
+                        child: (hospitalLogoUrl != null && hospitalLogoUrl.isNotEmpty)
+                            ? Image.network(
+                                hospitalLogoUrl,
+                                height: 40,
+                                width: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Image.asset(
+                                    "assets/logo.png",
+                                    height: 40,
+                                    width: 40,
+                                    fit: BoxFit.contain,
+                                  );
+                                },
+                              )
+                            : Image.asset(
+                                "assets/logo.png",
+                                height: 40,
+                                width: 40,
+                                fit: BoxFit.contain,
+                              ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(

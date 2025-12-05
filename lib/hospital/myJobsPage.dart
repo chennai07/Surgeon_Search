@@ -20,6 +20,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
   int bottomIndex = 0;
   int tabIndex = 0; // 0 = Active, 1 = Closed
   String _hospitalName = '';
+  String? _hospitalLogoUrl;
 
   @override
   void initState() {
@@ -45,12 +46,12 @@ class _MyJobsPageState extends State<MyJobsPage> {
           final profile = data is Map && data['data'] != null ? data['data'] : data;
           if (profile is Map) {
              final name = profile['hospitalName'] ?? profile['name'] ?? profile['organizationName'];
-             if (name != null) {
-               if (mounted) {
-                 setState(() {
-                   _hospitalName = name.toString();
-                 });
-               }
+             final logo = profile['hospitalLogo'];
+             if (mounted) {
+               setState(() {
+                 if (name != null) _hospitalName = name.toString();
+                 if (logo != null) _hospitalLogoUrl = logo.toString();
+               });
              }
           }
         }
@@ -224,14 +225,28 @@ class _MyJobsPageState extends State<MyJobsPage> {
                 child: Row(
                   children: [
                     // Hospital Logo
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        "assets/logo.png",
-                        height: 40,
-                        width: 40,
-                        fit: BoxFit.contain,
-                      ),
+                    ClipOval(
+                      child: (_hospitalLogoUrl != null && _hospitalLogoUrl!.isNotEmpty)
+                          ? Image.network(
+                              _hospitalLogoUrl!,
+                              height: 40,
+                              width: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Image.asset(
+                                  "assets/logo.png",
+                                  height: 40,
+                                  width: 40,
+                                  fit: BoxFit.contain,
+                                );
+                              },
+                            )
+                          : Image.asset(
+                              "assets/logo.png",
+                              height: 40,
+                              width: 40,
+                              fit: BoxFit.contain,
+                            ),
                     ),
                     const SizedBox(width: 12),
 
