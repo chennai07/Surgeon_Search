@@ -191,8 +191,9 @@ class _SubscriptionPlanScreenState extends State<SubscriptionPlanScreen> {
                         // Show subscription activated popup
                         Navigator.push(
                           context,
-                          MaterialPageRoute(
-                            builder: (_) => const SubscriptionActivatedScreen(),
+                          PageRouteBuilder(
+                            opaque: false,
+                            pageBuilder: (_, __, ___) => const SubscriptionActivatedScreen(),
                           ),
                         );
                       },

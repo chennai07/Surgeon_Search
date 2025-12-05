@@ -65,18 +65,31 @@ class JobCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
-                    logo,
-                    height: 40,
-                    width: 40,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.broken_image,
-                      size: 32,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  borderRadius: BorderRadius.circular(50),
+                  child: logo.startsWith('http')
+                      ? Image.network(
+                          logo,
+                          height: 40,
+                          width: 40,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Image.asset(
+                            'assets/logo2.png',
+                            height: 40,
+                            width: 40,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Image.asset(
+                          logo,
+                          height: 40,
+                          width: 40,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.broken_image,
+                            size: 32,
+                            color: Colors.grey,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(

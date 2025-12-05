@@ -31,11 +31,12 @@ class _SubscriptionActivatedScreenState extends State<SubscriptionActivatedScree
   Future<void> _navigateToDashboard() async {
     final profileId = await SessionManager.getProfileId();
     if (mounted && profileId != null) {
-      Navigator.pushReplacement(
+      Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
           builder: (context) => ProfessionalProfileViewPage(profileId: profileId),
         ),
+        (route) => false, // Remove all previous routes
       );
     }
   }
@@ -56,7 +57,7 @@ class _SubscriptionActivatedScreenState extends State<SubscriptionActivatedScree
           Container(
             width: double.infinity,
             height: double.infinity,
-            color: Colors.white,
+            color: Colors.black54,
           ),
 
           /// Bottom curved popup

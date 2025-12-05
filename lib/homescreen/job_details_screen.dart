@@ -153,6 +153,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     String? linkedIn,
     String? notes,
     PlatformFile? cvFile,
+    bool isCvFromProfile = false,
   }) async {
     try {
       final surgeonProfileId = await SessionManager.getProfileId();
@@ -200,6 +201,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       request.fields['healthcare_id'] = healthcareId;
       request.fields['surgeonprofile_id'] = surgeonProfileId;
       request.fields['job_id'] = widget.jobId;
+      request.fields['isCvFromProfile'] = isCvFromProfile.toString();
 
       print('🔵 Request Fields: ${request.fields}');
 
@@ -317,6 +319,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     String selectedLocation = 'Bangalore, India';
     PlatformFile? selectedFile;
     String? selectedFileName;
+    bool isCvFromProfile = false;
     bool isFetchingCv = false;
 
     showDialog(
@@ -452,6 +455,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                 setState(() {
                                   selectedFile = result.files.first;
                                   selectedFileName = selectedFile!.name;
+                                  isCvFromProfile = false;
                                 });
                               }
                             },
@@ -486,105 +490,88 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                         // Fetch from Profile Button
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: isFetchingCv
-                                ? null
-                                : () async {
-                                    setState(() {
-                                      isFetchingCv = true;
-                                    });
-                                    try {
-                                      final pid =
-                                          await SessionManager.getProfileId();
-                                      if (pid == null) {
-                                        throw 'Profile ID not found';
-                                      }
-                                      final url = Uri.parse(
-                                          'http://13.203.67.154:3000/api/sugeon/profile-info/$pid');
-                                      final response = await http.get(url);
-                                      if (response.statusCode == 200) {
-                                        final data = jsonDecode(response.body);
-                                        final p = data['data'] is Map &&
-                                                data['data']['profile'] != null
-                                            ? data['data']['profile']
-                                            : (data['data'] is Map
-                                                ? data['data']
-                                                : {});
-                                        final cvUrl = p['cv'];
-                                        if (cvUrl != null &&
-                                            cvUrl.toString().isNotEmpty) {
-                                          // Download CV
-                                          final cvUri = Uri.parse(cvUrl);
-                                          final cvRes = await http.get(cvUri);
-                                          if (cvRes.statusCode == 200) {
-                                            final tempDir =
-                                                Directory.systemTemp;
-                                            final fileName = cvUrl
-                                                .toString()
-                                                .split('/')
-                                                .last;
-                                            final tempFile = File(
-                                                '${tempDir.path}/$fileName');
-                                            await tempFile.writeAsBytes(
-                                                cvRes.bodyBytes);
-
+                                    onPressed: isFetchingCv
+                                        ? null
+                                        : () async {
+                                            print('🔴 Fetch from Profile clicked');
                                             setState(() {
-                                              selectedFile = PlatformFile(
-                                                name: fileName,
-                                                path: tempFile.path,
-                                                size: tempFile.lengthSync(),
-                                              );
-                                              selectedFileName = fileName;
+                                              isFetchingCv = true;
                                             });
+                                            try {
+                                              final pid = await SessionManager.getProfileId();
+                                              print('🔴 Profile ID from Session: $pid');
+                                              if (pid == null) {
+                                                throw 'Profile ID not found';
+                                              }
+                                              final url = Uri.parse(
+                                                  'http://13.203.67.154:3000/api/sugeon/profile-info/$pid');
+                                              final response = await http.get(url);
+                                              print('🔴 Profile Info Response Status: ${response.statusCode}');
+                                              print('🔴 Profile Info Response Body: ${response.body}');
+                                              
+                                              if (response.statusCode == 200) {
+                                                final data = jsonDecode(response.body);
+                                                final p = data['data'] is Map &&
+                                                        data['data']['profile'] != null
+                                                    ? data['data']['profile']
+                                                    : (data['data'] is Map ? data['data'] : {});
+                                                
+                                                print('🔴 Parsed Profile Data: $p');
+                                                print('🔴 CV URL: ${p['cv']}');
 
-                                            Get.snackbar(
-                                              'Success',
-                                              'CV fetched from profile!',
-                                              snackPosition: SnackPosition.TOP,
-                                              backgroundColor: Colors.green,
-                                              colorText: Colors.white,
-                                              margin: const EdgeInsets.all(10),
-                                              borderRadius: 8,
-                                              duration:
-                                                  const Duration(seconds: 2),
-                                            );
-                                          } else {
-                                            throw 'Failed to download CV';
-                                          }
-                                        } else {
-                                          Get.snackbar(
-                                            'Info',
-                                            'CV not found in profile',
-                                            snackPosition: SnackPosition.TOP,
-                                            backgroundColor: Colors.orange,
-                                            colorText: Colors.white,
-                                            margin: const EdgeInsets.all(10),
-                                            borderRadius: 8,
-                                            duration:
-                                                const Duration(seconds: 3),
-                                          );
-                                        }
-                                      } else {
-                                        throw 'Failed to fetch profile info';
-                                      }
-                                    } catch (e) {
-                                      Get.snackbar(
-                                        'Error',
-                                        e.toString(),
-                                        snackPosition: SnackPosition.TOP,
-                                        backgroundColor: Colors.red,
-                                        colorText: Colors.white,
-                                        margin: const EdgeInsets.all(10),
-                                        borderRadius: 8,
-                                        duration: const Duration(seconds: 3),
-                                      );
-                                    } finally {
-                                      if (mounted) {
-                                        setState(() {
-                                          isFetchingCv = false;
-                                        });
-                                      }
-                                    }
-                                  },
+                                                final cvUrl = p['cv'];
+                                                if (cvUrl != null && cvUrl.toString().isNotEmpty) {
+                                                  // Successfully found CV in profile
+                                                  setState(() {
+                                                    selectedFile = null; // Clear manual file
+                                                    selectedFileName = 'CV from Profile';
+                                                    isCvFromProfile = true;
+                                                  });
+
+                                                  Get.snackbar(
+                                                    'Success',
+                                                    'CV selected from profile!',
+                                                    snackPosition: SnackPosition.TOP,
+                                                    backgroundColor: Colors.green,
+                                                    colorText: Colors.white,
+                                                    margin: const EdgeInsets.all(10),
+                                                    borderRadius: 8,
+                                                    duration: const Duration(seconds: 2),
+                                                  );
+                                                } else {
+                                                  Get.snackbar(
+                                                    'Info',
+                                                    'CV not found in profile. Please upload one.',
+                                                    snackPosition: SnackPosition.TOP,
+                                                    backgroundColor: Colors.orange,
+                                                    colorText: Colors.white,
+                                                    margin: const EdgeInsets.all(10),
+                                                    borderRadius: 8,
+                                                    duration: const Duration(seconds: 3),
+                                                  );
+                                                }
+                                              } else {
+                                                throw 'Failed to fetch profile info';
+                                              }
+                                            } catch (e) {
+                                              Get.snackbar(
+                                                'Error',
+                                                e.toString(),
+                                                snackPosition: SnackPosition.TOP,
+                                                backgroundColor: Colors.red,
+                                                colorText: Colors.white,
+                                                margin: const EdgeInsets.all(10),
+                                                borderRadius: 8,
+                                                duration: const Duration(seconds: 3),
+                                              );
+                                            } finally {
+                                              if (mounted) {
+                                                setState(() {
+                                                  isFetchingCv = false;
+                                                });
+                                              }
+                                            }
+                                          },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF0062FF),
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -699,6 +686,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                 linkedIn: linkedinController.text.trim(),
                                 notes: notesController.text.trim(),
                                 cvFile: selectedFile,
+                                isCvFromProfile: isCvFromProfile,
                               );
 
                               if (ok) {
@@ -815,9 +803,37 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                         children: [
                           const SizedBox(height: 8),
                           Center(
-                            child: Image.asset(
-                              'assets/logo.png',
-                              height: 80,
+                            child: Builder(
+                              builder: (context) {
+                                String? logoUrl = (_job!['hospitalLogo'] ?? '').toString();
+                                if (logoUrl.isEmpty && _job!['healthcare_id'] is Map) {
+                                  final hc = _job!['healthcare_id'];
+                                  logoUrl = (hc['profilePicture'] ?? hc['logo'] ?? '').toString();
+                                }
+                                
+                                if (logoUrl.isNotEmpty) {
+                                  return ClipRRect(
+                                    borderRadius: BorderRadius.circular(40), // Circular or rounded
+                                    child: Image.network(
+                                      logoUrl,
+                                      height: 80,
+                                      width: 80,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Image.asset(
+                                          'assets/logo.png',
+                                          height: 80,
+                                        );
+                                      },
+                                    ),
+                                  );
+                                } else {
+                                  return Image.asset(
+                                    'assets/logo.png',
+                                    height: 80,
+                                  );
+                                }
+                              },
                             ),
                           ),
                           const SizedBox(height: 12),

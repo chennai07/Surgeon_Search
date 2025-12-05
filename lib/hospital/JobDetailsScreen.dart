@@ -6,6 +6,7 @@ import 'package:doc/model/api_service.dart';
 import 'package:doc/hospital/Interviewpage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final Map<String, dynamic> job;
@@ -1089,9 +1090,19 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
         ? createdRaw.split('T').first
         : createdRaw;
     final status = (widget.applicant['status'] ?? '').toString();
-    final resume =
-        (widget.applicant['cvResume'] ?? widget.applicant['resume'] ?? '')
-            .toString();
+    print('🔍 Applicant Data: ${widget.applicant}');
+    print('🔍 isCvFromProfile Raw: ${widget.applicant['isCvFromProfile']}');
+    
+    final isCvFromProfile = (widget.applicant['isCvFromProfile'] ?? 'false').toString().toLowerCase() == 'true';
+    
+    final manualCv = (widget.applicant['cvResume'] ?? widget.applicant['resume'] ?? widget.applicant['cv'] ?? '').toString();
+    final profileCv = _profile?.cv ?? '';
+    
+    print('🔍 isCvFromProfile: $isCvFromProfile');
+    print('🔍 Manual CV: $manualCv');
+    print('🔍 Profile CV: $profileCv');
+
+    final resume = isCvFromProfile ? profileCv : manualCv;
     final location = (widget.applicant['location'] ?? '').toString();
     final notes = (widget.applicant['notes'] ?? '').toString();
 
@@ -1326,11 +1337,29 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
                   resume.isNotEmpty ? 'Tap to view' : 'No file available',
                   style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
                 ),
-                onTap: () {
+                onTap: () async {
                   if (resume.isNotEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Opening resume...')),
                     );
+                    
+                    String url = resume;
+                    if (!url.startsWith('http')) {
+                       url = 'http://13.203.67.154:3000/$url';
+                    }
+
+                    try {
+                      final uri = Uri.parse(url);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        throw 'Could not launch $url';
+                      }
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Error opening resume: $e')),
+                      );
+                    }
                   }
                 },
               ),

@@ -585,13 +585,24 @@ class _ProfessionalProfileViewPageState
   }
 
   Future<void> _openDocument(String url) async {
-    final uri = Uri.parse(url);
+    // Construct full URL if it's just a filename or relative path
+    String fullUrl = url;
+    if (!url.startsWith('http')) {
+      // Assuming files are served from the root. 
+      // If your server uses a specific path for uploads (e.g. /uploads/), add it here.
+      // Example: http://13.203.67.154:3000/uploads/$url
+      fullUrl = 'http://13.203.67.154:3000/$url'; 
+    }
+
+    final uri = Uri.parse(fullUrl);
+    print("Launching Document URL: $uri"); 
+
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Could not open document")),
+          SnackBar(content: Text("Could not open document: $fullUrl")),
         );
       }
     }

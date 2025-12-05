@@ -153,7 +153,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 '',
             'location': m['location']?.toString() ?? '',
             'applicants': applicantsLabel,
-            'logo': 'assets/logo2.png',
+            'logo': (() {
+              String? url = m['hospitalLogo']?.toString();
+              if ((url == null || url.isEmpty) && m['healthcare_id'] is Map) {
+                final hc = m['healthcare_id'];
+                url = (hc['profilePicture'] ?? hc['logo'] ?? '').toString();
+              }
+              return (url != null && url.isNotEmpty) ? url : 'assets/logo2.png';
+            })(),
             'type': m['jobType']?.toString() ?? '',
             'speciality': m['department']?.toString() ??
                 m['subSpeciality']?.toString() ??
