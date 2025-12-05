@@ -511,10 +511,21 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                               
                                               if (response.statusCode == 200) {
                                                 final data = jsonDecode(response.body);
-                                                final p = data['data'] is Map &&
-                                                        data['data']['profile'] != null
-                                                    ? data['data']['profile']
-                                                    : (data['data'] is Map ? data['data'] : {});
+                                                
+                                                Map<String, dynamic> p = {};
+                                                if (data is Map<String, dynamic>) {
+                                                  if (data.containsKey('cv')) {
+                                                     // Root object is the profile
+                                                     p = data;
+                                                  } else if (data['data'] is Map) {
+                                                     final d = data['data'];
+                                                     if (d['profile'] is Map) {
+                                                       p = d['profile'];
+                                                     } else {
+                                                       p = d;
+                                                     }
+                                                  }
+                                                }
                                                 
                                                 print('🔴 Parsed Profile Data: $p');
                                                 print('🔴 CV URL: ${p['cv']}');

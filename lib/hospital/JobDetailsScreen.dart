@@ -1090,17 +1090,17 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
         ? createdRaw.split('T').first
         : createdRaw;
     final status = (widget.applicant['status'] ?? '').toString();
-    print('🔍 Applicant Data: ${widget.applicant}');
-    print('🔍 isCvFromProfile Raw: ${widget.applicant['isCvFromProfile']}');
+    print('🔍 Hospital Side - Applicant Raw: ${widget.applicant}');
+    print('🔍 Hospital Side - isCvFromProfile Raw: ${widget.applicant['isCvFromProfile']}');
     
     final isCvFromProfile = (widget.applicant['isCvFromProfile'] ?? 'false').toString().toLowerCase() == 'true';
+    print('🔍 Hospital Side - isCvFromProfile Parsed: $isCvFromProfile');
     
     final manualCv = (widget.applicant['cvResume'] ?? widget.applicant['resume'] ?? widget.applicant['cv'] ?? '').toString();
-    final profileCv = _profile?.cv ?? '';
+    print('🔍 Hospital Side - manualCv: $manualCv');
     
-    print('🔍 isCvFromProfile: $isCvFromProfile');
-    print('🔍 Manual CV: $manualCv');
-    print('🔍 Profile CV: $profileCv');
+    final profileCv = _profile?.cv ?? '';
+    print('🔍 Hospital Side - profileCv: $profileCv');
 
     final resume = isCvFromProfile ? profileCv : manualCv;
     final location = (widget.applicant['location'] ?? '').toString();
