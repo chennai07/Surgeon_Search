@@ -177,6 +177,9 @@ class _SurgeonFormState extends State<SurgeonForm> {
   File? highestDegree;
   File? logBook;
   String? profilePicUrl;
+  String? cvUrl;
+  String? highestDegreeUrl;
+  String? logBookUrl;
 
   String? selectedSurgicalExperience;
   String? selectedState;
@@ -209,6 +212,9 @@ class _SurgeonFormState extends State<SurgeonForm> {
 
     final d = widget.existingData ?? {};
     profilePicUrl = d['profilePicture'];
+    cvUrl = d['cv'];
+    highestDegreeUrl = d['highestDegree'];
+    logBookUrl = d['uploadLogBook'];
 
     fullName = TextEditingController(text: d['fullName'] ?? '');
     speciality = TextEditingController(text: d['speciality'] ?? '');
@@ -234,6 +240,11 @@ class _SurgeonFormState extends State<SurgeonForm> {
     selectedSurgicalExperience = d['surgicalExperience']?.toString().isNotEmpty == true
         ? d['surgicalExperience'].toString()
         : null;
+
+    // If existingData is provided, we already have a profile
+    if (widget.existingData != null && widget.existingData!.isNotEmpty) {
+      hasProfile = true;
+    }
 
     // Initialize work experience controllers
     _initializeWorkExpControllers();
@@ -261,7 +272,12 @@ class _SurgeonFormState extends State<SurgeonForm> {
   }
 
   Future<void> _loadProfileIfAny() async {
+    print("🔍 SurgeonForm: Loading profile for ID: ${widget.profileId}");
+    print("🔍 SurgeonForm: Existing data provided: ${widget.existingData != null}");
+    
     setState(() => isLoading = true);
+    
+    // Always fetch from API to get the latest data (especially file URLs)
     final res = await ApiService.fetchProfileInfo(widget.profileId);
     if (res['success'] == true) {
       final body = res['data'];
@@ -271,6 +287,9 @@ class _SurgeonFormState extends State<SurgeonForm> {
       if (p is Map) {
         hasProfile = true;
         profilePicUrl = p['profilePicture'];
+        cvUrl = p['cv'];
+        highestDegreeUrl = p['highestDegree'];
+        logBookUrl = p['uploadLogBook'];
         print("🔍 SurgeonForm: Profile Data: $p");
         fullName.text = (p['fullName'] ?? 
                          p['fullname'] ?? 
@@ -334,6 +353,9 @@ class _SurgeonFormState extends State<SurgeonForm> {
       if (sessionName != null) fullName.text = sessionName;
     }
 
+    // Reinitialize work experience controllers with new data
+    _initializeWorkExpControllers();
+
     setState(() => isLoading = false);
   }
 
@@ -352,7 +374,7 @@ class _SurgeonFormState extends State<SurgeonForm> {
     setState(() => isLoading = true);
 
     final uri = Uri.parse(
-      "http://13.203.67.154:3000/api/sugeon/profile/update/${widget.profileId}",
+      "http://13.203.67.154:3000/api/sugeon/edit-profile/${widget.profileId}",
     );
 
     var req = http.MultipartRequest("PUT", uri);
@@ -876,9 +898,61 @@ Widget build(BuildContext context) {
                         children: [
                           const Icon(Iconsax.document_upload, color: Colors.black54, size: 20),
                           const SizedBox(width: 10),
-                          Text(
-                            highestDegree != null ? "Highest degree uploaded " : "Upload highest degree (PDF/Image)",
-                            style: TextStyle(color: highestDegree != null ? Colors.green : Colors.black54),
+                          Expanded(
+                            child: Text(
+                              highestDegree != null
+                                  ? "Highest degree uploaded ✅"
+                                  : (highestDegreeUrl != null && highestDegreeUrl!.isNotEmpty
+                                      ? "Current Degree: ${highestDegreeUrl!.split('/').last} (Tap to change)"
+                                      : "Upload highest degree (PDF/Image)"),
+                              style: TextStyle(
+                                color: (highestDegree != null || (highestDegreeUrl != null && highestDegreeUrl!.isNotEmpty))
+                                    ? Colors.green
+                                    : Colors.black54,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          )
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  titleText("Upload Log Book"),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await FilePicker.platform.pickFiles(
+                        type: FileType.custom,
+                        allowedExtensions: ['pdf','xlsx','xls'],
+                      );
+                      if (picked != null) {
+                        setState(() => logBook = File(picked.files.single.path!));
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.black12),
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Row(
+                        children: [
+                          const Icon(Iconsax.document_upload, color: Colors.black54, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              logBook != null
+                                  ? "Log Book uploaded ✅"
+                                  : (logBookUrl != null && logBookUrl!.isNotEmpty
+                                      ? "Current LogBook: ${logBookUrl!.split('/').last} (Tap to change)"
+                                      : "Upload Log Book (PDF/Excel)"),
+                              style: TextStyle(
+                                color: (logBook != null || (logBookUrl != null && logBookUrl!.isNotEmpty))
+                                    ? Colors.green
+                                    : Colors.black54,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           )
                         ],
                       ),
@@ -1031,6 +1105,7 @@ Widget build(BuildContext context) {
                                   onPressed: () => removeWorkExperience(index),
                                 ),
                               ),
+
                           ],
                         ),
                       ),
@@ -1055,9 +1130,20 @@ Widget build(BuildContext context) {
                         children: [
                           const Icon(Iconsax.document_upload, color: Colors.black54, size: 20),
                           const SizedBox(width: 10),
-                          Text(
-                            cv != null ? "CV uploaded ✅" : "Upload your CV in PDF",
-                            style: TextStyle(color: cv != null ? Colors.green : Colors.black54),
+                          Expanded(
+                            child: Text(
+                              cv != null
+                                  ? "CV uploaded ✅"
+                                  : (cvUrl != null && cvUrl!.isNotEmpty
+                                      ? "Current CV: ${cvUrl!.split('/').last} (Tap to change)"
+                                      : "Upload your CV in PDF"),
+                              style: TextStyle(
+                                color: (cv != null || (cvUrl != null && cvUrl!.isNotEmpty))
+                                    ? Colors.green
+                                    : Colors.black54,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           )
                         ],
                       ),

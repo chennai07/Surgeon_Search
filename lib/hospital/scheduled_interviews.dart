@@ -318,7 +318,7 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
 
   Widget buildInterviewCard(Map<String, dynamic> interview) {
     // Extract data from actual API response structure
-    final jobId = interview['job_id']?.toString() ?? 'N/A';
+    // final jobId = interview['job_id']?.toString() ?? 'N/A'; // Removed as per request
     final coordinatorName = interview['coordinatorName']?.toString() ?? 'Coordinator';
     final coordinatorPhone = interview['coordinatorPhone']?.toString() ?? '';
     final startTime = interview['startTime']?.toString() ?? '';
@@ -373,16 +373,9 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// Job ID Row
+          /// Job ID Row - (Job ID removed, keeping badge)
           Row(
             children: [
-              Text(
-                "Job ID: $jobId",
-                style: TextStyle(
-                    color: Colors.blue.shade700,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600),
-              ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

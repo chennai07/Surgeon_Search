@@ -14,7 +14,8 @@ import 'package:doc/Subscription Plan Screen/hospital_free_trial_screen.dart';
 
 class HospitalForm extends StatefulWidget {
   final String healthcareId;
-  const HospitalForm({super.key, required this.healthcareId});
+  final Map<String, dynamic>? existingData;
+  const HospitalForm({super.key, required this.healthcareId, this.existingData});
 
   @override
   State<HospitalForm> createState() => _HospitalFormState();
@@ -104,6 +105,87 @@ Future<Map<String, dynamic>> _addHealthcareProfile({
   }
 }
 
+Future<Map<String, dynamic>> _updateHealthcareProfile({
+  required String healthcareId,
+  required String hospitalName,
+  required String phoneNumber,
+  required String email,
+  required String location,
+  required String facilityCategory,
+  String? hospitalType,
+  required List<String> departmentsAvailable,
+  required String hospitalOverview,
+  required Map<String, String> hrContact,
+  required String hospitalWebsite,
+  File? logoFile,
+}) async {
+  try {
+    // Use the edit endpoint provided by the user
+    final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/edit/$healthcareId');
+    final req = http.MultipartRequest('PUT', uri);
+
+    print('🏥 Updating hospital profile for healthcare_id: $healthcareId');
+
+    req.fields.addAll({
+      'hospitalName': hospitalName,
+      'phoneNumber': phoneNumber,
+      'email': email,
+      'location': location,
+      'facilityCategory': facilityCategory,
+      'hospitalOverview': hospitalOverview,
+      'hrContact[fullName]': hrContact['fullName'] ?? '',
+      'hrContact[designation]': hrContact['designation'] ?? '',
+      'hrContact[mobileNumber]': hrContact['mobileNumber'] ?? '',
+      'hrContact[email]': hrContact['email'] ?? '',
+      'hospitalWebsite': hospitalWebsite,
+    });
+
+    if (hospitalType != null && hospitalType.isNotEmpty) {
+      req.fields['hospitalType'] = hospitalType;
+    }
+
+    for (int i = 0; i < departmentsAvailable.length; i++) {
+      req.fields['departmentsAvailable[$i]'] = departmentsAvailable[i];
+    }
+
+    if (logoFile != null) {
+      req.files.add(await http.MultipartFile.fromPath('hospitalLogo', logoFile.path));
+    }
+
+    final streamed = await req.send();
+    final res = await http.Response.fromStream(streamed);
+
+    final body = res.body;
+    final ct = res.headers['content-type'] ?? '';
+    final trimmed = body.trimLeft();
+    final isJson = ct.contains('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[');
+
+    if (res.statusCode == 200 || res.statusCode == 201) {
+      if (isJson) {
+        try {
+          return {'success': true, 'data': jsonDecode(body)};
+        } catch (_) {
+          return {'success': true, 'data': {'raw': body}};
+        }
+      } else {
+        return {'success': true, 'data': {'raw': body}};
+      }
+    }
+    if (isJson) {
+      try {
+        final err = jsonDecode(body);
+        return {'success': false, 'message': err['message'] ?? body};
+      } catch (_) {
+        return {'success': false, 'message': body};
+      }
+    }
+    final snippet = body.length > 200 ? body.substring(0, 200) : body;
+    return {'success': false, 'message': 'HTTP ${res.statusCode}: $snippet'};
+  } catch (e) {
+    return {'success': false, 'message': e.toString()};
+  }
+}
+
 Future<Map<String, dynamic>> _fetchHealthcareProfile(String healthcareId) async {
   try {
     final url = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId');
@@ -144,8 +226,62 @@ class _HospitalFormState extends State<HospitalForm> {
   @override
   void initState() {
     super.initState();
-    _redirectIfProfileExists();
-    _autoPopulateEmail();
+    if (widget.existingData != null) {
+      _prefillData();
+    } else {
+      _redirectIfProfileExists();
+      _autoPopulateEmail();
+    }
+  }
+
+  void _prefillData() {
+    final d = widget.existingData!;
+    print("🏥 HospitalForm: Prefilling data: $d");
+    
+    hospitalNameController.text = d['hospitalName']?.toString() ?? '';
+    phoneController.text = d['phoneNumber']?.toString() ?? '';
+    emailController.text = d['email']?.toString() ?? '';
+    locationController.text = d['location']?.toString() ?? '';
+    overviewController.text = d['hospitalOverview']?.toString() ?? '';
+    websiteController.text = d['hospitalWebsite']?.toString() ?? '';
+    hospitalLogoUrl = d['hospitalLogo']?.toString();
+    
+    print("🏥 Hospital Name: ${hospitalNameController.text}");
+    print("🏥 Hospital Logo URL: $hospitalLogoUrl");
+    
+    // HR Contact
+    if (d['hrContact'] is Map) {
+      final hr = d['hrContact'];
+      hrNameController.text = hr['fullName']?.toString() ?? '';
+      hrDesignationController.text = hr['designation']?.toString() ?? '';
+      hrMobileController.text = hr['mobileNumber']?.toString() ?? '';
+      hrEmailController.text = hr['email']?.toString() ?? '';
+    }
+
+    // Dropdowns
+    if (d['facilityCategory'] != null && facilityCategories.contains(d['facilityCategory'])) {
+      selectedFacilityCategory = d['facilityCategory'];
+    }
+    if (d['hospitalType'] != null && hospitalSizes.contains(d['hospitalType'])) {
+      selectedHospitalSize = d['hospitalType'];
+    }
+
+    // Departments
+    if (d['departmentsAvailable'] is List) {
+      for (var dept in d['departmentsAvailable']) {
+        if (departments.contains(dept)) {
+          selectedDepartments.add(dept.toString());
+        }
+      }
+    }
+    
+    // Terms assumed accepted for existing profile
+    agreeTerms = true;
+    
+    // Trigger UI update
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   Future<void> _autoPopulateEmail() async {
@@ -255,7 +391,9 @@ class _HospitalFormState extends State<HospitalForm> {
   // Dropdown & Selections
   String? selectedFacilityCategory;
   String? selectedHospitalSize;
+
   File? hospitalLogo;
+  String? hospitalLogoUrl;
   bool agreeTerms = false;
   String searchQuery = ""; // For search functionality
 
@@ -303,6 +441,12 @@ class _HospitalFormState extends State<HospitalForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please agree to the terms first")),
       );
+      return;
+    }
+
+    // Check if updating
+    if (widget.existingData != null) {
+      _handleUpdate();
       return;
     }
 
@@ -433,6 +577,47 @@ class _HospitalFormState extends State<HospitalForm> {
       Get.snackbar(
         'Submit Failed', 
         res['message']?.toString() ?? 'Error creating hospital profile',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  void _handleUpdate() async {
+    print('🏥 Updating hospital profile with healthcare_id: ${widget.healthcareId}');
+
+    final res = await _updateHealthcareProfile(
+      healthcareId: widget.healthcareId,
+      hospitalName: hospitalNameController.text.trim(),
+      phoneNumber: phoneController.text.trim(),
+      email: emailController.text.trim(),
+      location: locationController.text.trim(),
+      facilityCategory: selectedFacilityCategory ?? '',
+      hospitalType: selectedHospitalSize,
+      departmentsAvailable: List<String>.from(selectedDepartments),
+      hospitalOverview: overviewController.text.trim(),
+      hrContact: {
+        'fullName': hrNameController.text.trim(),
+        'designation': hrDesignationController.text.trim(),
+        'mobileNumber': hrMobileController.text.trim(),
+        'email': hrEmailController.text.trim(),
+      },
+      hospitalWebsite: websiteController.text.trim(),
+      logoFile: hospitalLogo,
+    );
+
+    if (res['success'] == true) {
+      Get.snackbar(
+        'Success', 
+        'Profile updated successfully',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+      Navigator.pop(context); // Go back to profile
+    } else {
+      Get.snackbar(
+        'Update Failed', 
+        res['message']?.toString() ?? 'Error updating profile',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
@@ -588,23 +773,46 @@ class _HospitalFormState extends State<HospitalForm> {
                         ],
                       ),
                     )
-                  : SizedBox(
-                      height: 45,
-                      child: OutlinedButton.icon(
-                        onPressed: pickImage,
-                        icon: const Icon(Icons.upload_file),
-                        label: Text(
-                          "Upload your image",
-                          style: GoogleFonts.poppins(fontSize: 14),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.grey),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                  : (hospitalLogoUrl != null && hospitalLogoUrl!.isNotEmpty
+                      ? Center(
+                          child: Column(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  hospitalLogoUrl!,
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      const Icon(Iconsax.image, size: 50, color: Colors.grey),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              TextButton(
+                                onPressed: pickImage,
+                                child: const Text("Change Logo"),
+                              )
+                            ],
                           ),
-                        ),
-                      ),
-                    ),
+                        )
+                      : SizedBox(
+                          height: 45,
+                          child: OutlinedButton.icon(
+                            onPressed: pickImage,
+                            icon: const Icon(Icons.upload_file),
+                            label: Text(
+                              "Upload your image",
+                              style: GoogleFonts.poppins(fontSize: 14),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              side: const BorderSide(color: Colors.grey),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        )),
               const SizedBox(height: 15),
 
               // 🏥 Facility Category Dropdown

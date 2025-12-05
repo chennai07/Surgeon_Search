@@ -5,6 +5,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/utils/session_manager.dart';
+import 'package:doc/healthcare/hospial_form.dart';
 
 class HospitalProfile extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -192,6 +193,21 @@ class _HospitalProfileState extends State<HospitalProfile> {
           style: GoogleFonts.poppins(color: Colors.black, fontSize: 15),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Iconsax.edit, color: Colors.blueAccent),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => HospitalForm(
+                    healthcareId: widget.data['healthcare_id']?.toString() ?? 
+                                 widget.data['_id']?.toString() ?? '',
+                    existingData: _profileData,
+                  ),
+                ),
+              ).then((_) => _fetchProfile());
+            },
+          ),
           TextButton(
             onPressed: () async {
               await SessionManager.clearAll();

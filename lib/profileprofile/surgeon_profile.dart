@@ -8,6 +8,7 @@ import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/homescreen/SearchjobScreen.dart';
 import 'package:doc/homescreen/Applied_Jobs.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doc/utils/subscription_guard.dart';
 
@@ -127,7 +128,13 @@ class _ProfessionalProfileViewPageState
       'location': _profile?.location,
       'portfolioLinks': _profile?.portfolio,
       'profilePicture': _profile?.profilePicture,
-      'yearsOfExperience': _profile?.period, // Assuming period maps roughly to experience or we leave it blank
+      'yearsOfExperience': _profile?.period,
+      'state': _profile?.state,
+      'district': _profile?.district,
+      'cv': _profile?.cv,
+      'highestDegree': _profile?.highestDegree,
+      'uploadLogBook': _profile?.logBook,
+      'surgicalExperience': _profile?.surgicalExperience,
     };
 
     Navigator.push(
@@ -174,10 +181,7 @@ class _ProfessionalProfileViewPageState
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.black),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
             icon: const Icon(Iconsax.edit, color: Colors.blueAccent),
@@ -283,6 +287,12 @@ class _ProfessionalProfileViewPageState
             _infoTile(Iconsax.location, "Work Location", _profile!.workLocation),
             _infoTile(Iconsax.calendar, "Experience", _profile!.period),
             _infoTile(Iconsax.link, "Portfolio", _profile!.portfolio),
+            
+            // State and District
+            if (_profile!.state.isNotEmpty)
+              _infoTile(Iconsax.map, "State", _profile!.state),
+            if (_profile!.district.isNotEmpty)
+              _infoTile(Iconsax.location, "District", _profile!.district),
 
             const SizedBox(height: 16),
             _infoHeader("Summary"),
@@ -305,6 +315,12 @@ class _ProfessionalProfileViewPageState
                 ),
               ),
             ),
+
+            // Documents Section (CV, Degree, Log Book)
+            const SizedBox(height: 20),
+            _infoHeader("Documents"),
+            const SizedBox(height: 8),
+            _buildDocumentSection(),
 
             const SizedBox(height: 30),
 
@@ -494,6 +510,91 @@ class _ProfessionalProfileViewPageState
         ],
       ),
     );
+  }
+
+  // Documents Section Widget
+  Widget _buildDocumentSection() {
+    final hasCV = _profile!.cv.isNotEmpty;
+    final hasDegree = _profile!.highestDegree.isNotEmpty;
+    final hasLogBook = _profile!.logBook.isNotEmpty;
+
+    if (!hasCV && !hasDegree && !hasLogBook) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: const Text(
+          "No documents uploaded yet",
+          style: TextStyle(color: Colors.black54, fontSize: 14),
+        ),
+      );
+    }
+
+    return Column(
+      children: [
+        if (hasCV) _buildDocumentItem("CV / Resume", _profile!.cv, Iconsax.document_text),
+        if (hasDegree) _buildDocumentItem("Highest Degree", _profile!.highestDegree, Iconsax.award),
+        if (hasLogBook) _buildDocumentItem("Log Book", _profile!.logBook, Iconsax.book_1),
+      ],
+    );
+  }
+
+  Widget _buildDocumentItem(String title, String url, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.blueAccent.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: Colors.blueAccent, size: 24),
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+        subtitle: Text(
+          url.split('/').last,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: IconButton(
+          icon: const Icon(Iconsax.export_1, color: Colors.blueAccent),
+          onPressed: () => _openDocument(url),
+          tooltip: "View Document",
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openDocument(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Could not open document")),
+        );
+      }
+    }
   }
 
   // Bottom Navigation Item (same visual style, but tappable)

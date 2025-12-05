@@ -13,6 +13,12 @@ class DoctorProfileData {
   final String location;
   final String portfolio;
   final String profilePicture;
+  final String state;
+  final String district;
+  final String cv;
+  final String highestDegree;
+  final String logBook;
+  final String surgicalExperience;
 
   DoctorProfileData({
     required this.name,
@@ -29,6 +35,12 @@ class DoctorProfileData {
     required this.location,
     required this.portfolio,
     required this.profilePicture,
+    this.state = '',
+    this.district = '',
+    this.cv = '',
+    this.highestDegree = '',
+    this.logBook = '',
+    this.surgicalExperience = '',
   });
 
   factory DoctorProfileData.fromMap(Map<String, dynamic> data) {
@@ -66,7 +78,7 @@ class DoctorProfileData {
       subSpeciality: profileData['subSpeciality']?.toString() ?? '',
       designation: designation,
       organization: organization,
-      period: period,
+      period: period.isNotEmpty ? period : (profileData['yearsOfExperience']?.toString() ?? ''),
       workLocation: workLocation,
 
       phone: profileData['phoneNumber']?.toString() ?? 
@@ -76,9 +88,15 @@ class DoctorProfileData {
              profileData['mobilenumber']?.toString() ?? 
              '',
       email: profileData['email']?.toString() ?? '',
-      location: profileData['location']?.toString() ?? profileData['state']?.toString() ?? '',
+      location: profileData['location']?.toString() ?? '',
+      state: profileData['state']?.toString() ?? '',
+      district: profileData['district']?.toString() ?? '',
       portfolio: profileData['portfolioLinks']?.toString() ?? '',
       profilePicture: profileData['profilePicture']?.toString() ?? '',
+      cv: profileData['cv']?.toString() ?? '',
+      highestDegree: profileData['highestDegree']?.toString() ?? '',
+      logBook: profileData['uploadLogBook']?.toString() ?? '',
+      surgicalExperience: profileData['surgicalExperience']?.toString() ?? '',
     );
   }
 }
