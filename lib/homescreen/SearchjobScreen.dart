@@ -930,13 +930,14 @@ class _FilterDialogContentState extends State<FilterDialogContent> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
-                      setState(() {
-                        selectedLocation = null;
-                        selectedSpeciality = null;
-                        selectedSubSpeciality = null;
-                        selectedTypes.clear();
-                        minSalary = 10;
-                        maxSalary = 70;
+                      // Return default values to parent to clear filters immediately
+                      Navigator.pop(context, {
+                        'location': null,
+                        'speciality': null,
+                        'subSpeciality': null,
+                        'types': <String>[],
+                        'minSalary': 10.0,
+                        'maxSalary': 70.0,
                       });
                     },
                     style: ElevatedButton.styleFrom(
