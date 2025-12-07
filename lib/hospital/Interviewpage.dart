@@ -421,7 +421,9 @@ class _ScheduleInterviewPageState extends State<ScheduleInterviewPage> {
                   // Cancel Button
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: const BorderSide(color: Colors.blue),

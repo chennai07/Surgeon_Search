@@ -228,7 +228,7 @@ class _ManageJobListingsState extends State<ManageJobListings> {
               final lastName = (applicantObj['lastName'] ?? '').toString();
               final name = [firstName, lastName].where((s) => s.isNotEmpty).join(' ').trim();
               final location = (applicantObj['location'] ?? '').toString();
-              final profilePic = (applicantObj['profilePic'] ?? applicantObj['profileImage'] ?? '').toString();
+              final profilePic = (applicantObj['profilePicture'] ?? applicantObj['profilePic'] ?? applicantObj['profileImage'] ?? '').toString();
               
               // Extract Application Details
               final status = (m['status'] ?? 'Applied').toString();
@@ -808,7 +808,10 @@ class _ManageJobListingsState extends State<ManageJobListings> {
     final appliedOn = createdRaw.contains('T')
         ? createdRaw.split('T').first
         : createdRaw;
-    final profilePic = (a['profilePic'] ?? '').toString();
+    var profilePic = (a['profilePic'] ?? '').toString();
+    if (profilePic.isNotEmpty && !profilePic.startsWith('http')) {
+       profilePic = 'http://13.203.67.154:3000/$profilePic';
+    }
 
     Color tagColor;
     switch (status.toLowerCase()) {

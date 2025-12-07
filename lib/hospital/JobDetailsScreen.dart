@@ -35,6 +35,7 @@ class JobDetailScreen extends StatefulWidget {
 class _JobDetailScreenState extends State<JobDetailScreen> {
   late Map<String, dynamic> _jobData;
   bool _isLoading = true;
+  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -161,7 +162,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => Navigator.pop(context, _hasChanges),
                     child: const Row(
                       children: [
                         Icon(Icons.arrow_back_ios, size: 16),
@@ -496,7 +497,33 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                 title: const Text("Closed"),
                 onTap: () {
                   Navigator.pop(ctx);
-                  _updateJobStatus("closed");
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Close Job"),
+                      content: const Text(
+                          "Do you want to close all the interviews scheduled for this job?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("No"),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _updateJobStatus("closed");
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: const Text(
+                            "Yes",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             ],
@@ -560,6 +587,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
               _jobData['applicationDeadline'] = deadline;
             }
             _isLoading = false;
+            _hasChanges = true;
           });
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Job marked as $status')),
@@ -648,6 +676,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     'deadline': deadlineController.text,
                   });
                   Navigator.pop(ctx);
+                  _hasChanges = true;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Job updated')),
                   );
@@ -689,7 +718,7 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
             onPressed: () {
               widget.onDelete();
               Navigator.pop(context); // close dialog
-              Navigator.pop(context); // close detail screen
+              Navigator.pop(context, true); // close detail screen with true (deleted)
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Job deleted (mock)')),
               );

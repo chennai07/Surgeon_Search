@@ -586,8 +586,8 @@ class _MyJobsPageState extends State<MyJobsPage> {
       tagColor: tagColor,
       imagePath: 'assets/logo.png',
       showImage: false,
-      onReviewTap: () {
-        Navigator.push(
+      onReviewTap: () async {
+        final result = await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => JobDetailScreen(
@@ -601,6 +601,9 @@ class _MyJobsPageState extends State<MyJobsPage> {
             ),
           ),
         );
+        if (result == true) {
+          _fetchJobs();
+        }
       },
       onViewProfileTap: () {},
     );

@@ -412,14 +412,25 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
               CircleAvatar(
                 radius: 26,
                 backgroundColor: Colors.blue.shade100,
-                child: Text(
-                  coordinatorName.isNotEmpty ? coordinatorName[0].toUpperCase() : 'C',
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
+                backgroundImage: (interview['profilePicture'] != null && interview['profilePicture'].toString().isNotEmpty)
+                    ? NetworkImage(
+                        interview['profilePicture'].toString().startsWith('http')
+                            ? interview['profilePicture'].toString()
+                            : 'http://13.203.67.154:3000/${interview['profilePicture']}',
+                      )
+                    : null,
+                child: (interview['profilePicture'] == null || interview['profilePicture'].toString().isEmpty)
+                    ? Text(
+                        coordinatorName.isNotEmpty
+                            ? coordinatorName[0].toUpperCase()
+                            : 'C',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue,
+                        ),
+                      )
+                    : null,
               ),
               const SizedBox(width: 14),
               Expanded(
