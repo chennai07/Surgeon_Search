@@ -6,6 +6,8 @@ import 'package:doc/utils/session_manager.dart';
 import 'package:doc/hospital/JobDetailsScreen.dart';
 import 'package:doc/hospital/applicantcard.dart';
 import 'package:doc/healthcare/hospital_profile.dart';
+import 'package:doc/widgets/skeleton_loader.dart';
+import 'package:shimmer/shimmer.dart';
 
 class ManageJobListings extends StatefulWidget {
   final Map<String, dynamic>? hospitalData;
@@ -28,12 +30,73 @@ class _ManageJobListingsState extends State<ManageJobListings> {
   List<Map<String, dynamic>> _applicants = [];
 
   bool _isLoading = true;
+
   String? _error;
+
+  // Header State
+  bool _isHeaderLoading = true;
+  String _hospitalName = '';
+  String? _hospitalLogoUrl;
 
   @override
   void initState() {
     super.initState();
+
     _fetchJobs();
+    _initHospitalHeader();
+  }
+
+  void _initHospitalHeader() {
+    // Use passed data as initial placeholder if available
+    if (widget.hospitalData != null) {
+       setState(() {
+         _hospitalName = widget.hospitalData?['hospitalName']?.toString() ?? 
+                         widget.hospitalData?['name']?.toString() ?? 
+                         'Hospital';
+         _hospitalLogoUrl = widget.hospitalData?['hospitalLogo']?.toString();
+         // Don't set loading to false yet, wait for API fetch to confirm/update
+         // or set it false but let API update it later?
+         // User wants to "use the profile api", so we should fetch.
+         // Let's keep loading true or at least fetch in background.
+       });
+    }
+    _fetchHospitalProfile();
+  }
+
+  Future<void> _fetchHospitalProfile() async {
+    try {
+      String? id = await SessionManager.getHealthcareId();
+      if (id == null || id.isEmpty) {
+        id = await SessionManager.getProfileId();
+      }
+
+      if (id != null && id.isNotEmpty) {
+        final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$id');
+        final response = await http.get(uri);
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+          final data = body is Map && body['data'] != null ? body['data'] : body;
+          if (data is Map) {
+             final name = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
+             final logo = data['hospitalLogo'];
+             if (mounted) {
+               setState(() {
+                 if (name != null) _hospitalName = name.toString();
+                 if (logo != null) _hospitalLogoUrl = logo.toString();
+                 _isHeaderLoading = false;
+               });
+             }
+          }
+        } else {
+           if (mounted) setState(() => _isHeaderLoading = false);
+        }
+      } else {
+         if (mounted) setState(() => _isHeaderLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching hospital name: $e');
+      if (mounted) setState(() => _isHeaderLoading = false);
+    }
   }
 
   Future<void> _fetchJobs() async {
@@ -69,6 +132,12 @@ class _ManageJobListingsState extends State<ManageJobListings> {
         _error = 'Error loading applicants: $e';
         _isLoading = false;
       });
+    } finally {
+      if (mounted && _isLoading) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -210,13 +279,8 @@ class _ManageJobListingsState extends State<ManageJobListings> {
 
   @override
   Widget build(BuildContext context) {
-    // Get hospital name from hospitalData
-    final hospitalName = widget.hospitalData?['hospitalName']?.toString() ?? 
-                        widget.hospitalData?['name']?.toString() ?? 
-                        'Hospital';
-    
-    // Get hospital logo from hospitalData
-    final hospitalLogoUrl = widget.hospitalData?['hospitalLogo']?.toString();
+    // Get hospital name from hospitalData or fetched state
+    // (Variables now managed in state)
 
     print('👥 BUILD: Total applicants: ${_applicants.length}');
     print('👥 BUILD: Current tab: $tabIndex (0=Active, 1=Closed)');
@@ -253,7 +317,13 @@ class _ManageJobListingsState extends State<ManageJobListings> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ---------- TOP HEADER ----------
-              GestureDetector(
+              if (_isHeaderLoading && _hospitalName.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 20),
+                  child: ProfileHeaderSkeleton(),
+                )
+              else
+                GestureDetector(
                 onTap: () {
                   // Navigate to hospital profile
                   if (widget.hospitalData != null) {
@@ -285,32 +355,39 @@ class _ManageJobListingsState extends State<ManageJobListings> {
                     children: [
                       // Hospital Logo
                       ClipOval(
-                        child: (hospitalLogoUrl != null && hospitalLogoUrl.isNotEmpty)
-                            ? Image.network(
-                                hospitalLogoUrl,
-                                height: 40,
-                                width: 40,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Image.asset(
-                                    "assets/logo.png",
-                                    height: 40,
-                                    width: 40,
-                                    fit: BoxFit.contain,
-                                  );
-                                },
-                              )
-                            : Image.asset(
-                                "assets/logo.png",
-                                height: 40,
-                                width: 40,
-                                fit: BoxFit.contain,
-                              ),
+                        child: Container(
+                          height: 40,
+                          width: 40,
+                          decoration: const BoxDecoration(shape: BoxShape.circle),
+                          child: (_hospitalLogoUrl != null && _hospitalLogoUrl!.isNotEmpty)
+                              ? Image.network(
+                                  _hospitalLogoUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Shimmer.fromColors(
+                                      baseColor: Colors.grey[300]!,
+                                      highlightColor: Colors.grey[100]!,
+                                      child: Container(color: Colors.white),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      "assets/logo.png",
+                                      fit: BoxFit.contain,
+                                    );
+                                  },
+                                )
+                              : Image.asset(
+                                  "assets/logo.png",
+                                  fit: BoxFit.contain,
+                                ),
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          hospitalName,
+                          _hospitalName.isNotEmpty ? _hospitalName : "Hospital",
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontSize: 18,
@@ -398,11 +475,9 @@ class _ManageJobListingsState extends State<ManageJobListings> {
 
               const SizedBox(height: 16),
               if (_isLoading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: CircularProgressIndicator(),
-                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: SkeletonLoader(itemCount: 4, height: 120),
                 )
               else if (_error != null)
                 Padding(
@@ -413,11 +488,17 @@ class _ManageJobListingsState extends State<ManageJobListings> {
                   ),
                 )
               else if (filteredApplicants.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    'No applicants found',
-                    style: TextStyle(color: Colors.black54),
+                Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.people_alt_outlined, size: 60, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No applicants found in ${tabIndex == 0 ? "Active" : "Closed"} jobs',
+                        style: const TextStyle(color: Colors.grey, fontSize: 16),
+                      ),
+                    ],
                   ),
                 )
               else

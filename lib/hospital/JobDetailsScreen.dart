@@ -7,6 +7,8 @@ import 'package:doc/hospital/Interviewpage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:doc/widgets/skeleton_loader.dart';
+import 'package:shimmer/shimmer.dart';
 
 class JobDetailScreen extends StatefulWidget {
   final Map<String, dynamic> job;
@@ -41,10 +43,14 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     _fetchJobDetails();
   }
 
+  // Additional state for hospital details if not populated in job
+  String? _hospitalName;
+  String? _hospitalLogo;
+
   Future<void> _fetchJobDetails() async {
     final rawId = _jobData['_id'] ?? _jobData['id'];
     if (rawId == null) {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
       return;
     }
     final jobId = rawId.toString();
@@ -57,20 +63,55 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
         final body = jsonDecode(response.body);
         final data = body is Map && body['data'] != null ? body['data'] : body;
         if (data is Map<String, dynamic>) {
-          if (mounted) {
-            setState(() {
-              _jobData = data;
-              _isLoading = false;
-            });
-          }
+           _jobData = data;
+        
+           // Check if healthcare_id is a String (ID) and fetch profile if so
+           final hcId = data['healthcare_id'];
+           if (hcId is String && hcId.isNotEmpty) {
+             await _fetchHospitalProfile(hcId);
+           } else if (hcId is Map) {
+             // Already populated
+             if (mounted) {
+               setState(() {
+                  _hospitalName = hcId['hospitalName'] ?? hcId['name'];
+                  _hospitalLogo = hcId['hospitalLogo'];
+                  _isLoading = false;
+               });
+             }
+           } else {
+             if (mounted) setState(() => _isLoading = false);
+           }
         }
       } else {
-        debugPrint('Failed to fetch job details: ${response.statusCode}');
         if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint('Error fetching job details: $e');
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _fetchHospitalProfile(String id) async {
+    try {
+       final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$id');
+       final response = await http.get(uri);
+       if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+          final data = body is Map && body['data'] != null ? body['data'] : body;
+          if (data is Map) {
+             if (mounted) {
+               setState(() {
+                 _hospitalName = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
+                 _hospitalLogo = data['hospitalLogo'];
+                 _isLoading = false;
+               });
+             }
+          }
+       } else {
+         if (mounted) setState(() => _isLoading = false);
+       }
+    } catch (e) {
+       if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -98,9 +139,12 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
     // Hospital Name - try to get from healthcare_id if populated, otherwise hardcoded fallback or from job map
     // The API might return healthcare_id as an object if populated, or just an ID string.
     // For now, we'll check if it's a map and has a name.
-    String hospitalName = "Hospital"; 
+    String hospitalName = _hospitalName ?? "Hospital"; 
+    String? hospitalLogo = _hospitalLogo;
+
     if (job['healthcare_id'] is Map) {
-       hospitalName = job['healthcare_id']['hospitalName'] ?? job['healthcare_id']['name'] ?? "Hospital";
+       hospitalName = job['healthcare_id']['hospitalName'] ?? job['healthcare_id']['name'] ?? hospitalName;
+       hospitalLogo = job['healthcare_id']['hospitalLogo'] ?? hospitalLogo;
     }
 
     return Scaffold(
@@ -185,7 +229,38 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     const SizedBox(height: 6),
-                    Center(child: Image.asset("assets/logo.png", height: 90)),
+                    Center(
+                      child: ClipOval(
+                        child: Container(
+                          height: 90,
+                          width: 90,
+                          decoration: const BoxDecoration(shape: BoxShape.circle),
+                          child: (hospitalLogo != null && hospitalLogo.isNotEmpty)
+                              ? Image.network(
+                                  hospitalLogo,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Shimmer.fromColors(
+                                      baseColor: Colors.grey[300]!,
+                                      highlightColor: Colors.grey[100]!,
+                                      child: Container(color: Colors.white),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      "assets/logo.png",
+                                      fit: BoxFit.contain,
+                                    );
+                                  },
+                                )
+                              : Image.asset(
+                                  "assets/logo.png",
+                                  fit: BoxFit.contain,
+                                ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
                       title,
@@ -652,6 +727,7 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
   void initState() {
     super.initState();
     _applicants = widget.applicants;
+    _fetchApplicants();
   }
 
   Future<void> _fetchApplicants() async {
@@ -684,9 +760,48 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
         for (final item in list) {
           if (item is! Map) continue;
           final m = item;
-          final rawApplicant =
-              m['applicant'] is Map ? m['applicant'] as Map : m;
-          applicants.add(Map<String, dynamic>.from(rawApplicant as Map));
+          
+          // Debug logs
+          print('🔍 Debug Applicant Item: $m');
+
+          // Extract profile data
+          // If 'applicant' is a Map, use it. If it's missing, 'm' might be the flat object.
+          final profileData = m['applicant'] is Map ? m['applicant'] as Map : (m['applicant'] == null ? m : <String, dynamic>{});
+          
+          // Create a mutable map starting with profile data
+          final merged = Map<String, dynamic>.from(profileData);
+          
+          // Overlay Application-level fields specific to this job application
+          // This ensures we see the status of THIS application, not the user's generic status.
+          if (m.containsKey('status')) {
+            merged['status'] = m['status'];
+          }
+
+          // Check for boolean flag to robustly set status
+          // The API returns 'isInterviewscheduled' (lowercase s) or potentially 'isInterviewScheduled'
+          if (m['isInterviewscheduled'] == true || m['isInterviewScheduled'] == true) {
+             merged['status'] = 'Interview Scheduled';
+          }
+          
+          // Use 'createdAt' from the application object as 'appliedOn'
+          if (m.containsKey('createdAt')) {
+            merged['appliedOn'] = m['createdAt'];
+            merged['createdAt'] = m['createdAt'];
+          }
+          
+          // Capture Application ID (crucial for rejection/updates)
+          if (m.containsKey('_id')) {
+             // heavily prefer Application ID for list actions
+            merged['_id'] = m['_id']; 
+            merged['applicationId'] = m['_id'];
+          }
+          
+          // Ensure profilePic is available (fallback to what's in 'm' if profile doesn't have it)
+          if (!merged.containsKey('profilePicture') && m.containsKey('profileImage')) {
+             merged['profilePicture'] = m['profileImage'];
+          }
+
+          applicants.add(merged);
         }
 
         if (mounted) {
@@ -710,7 +825,7 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
       color: const Color(0xFFE0F0FF),
       child: Center(
         child: Text(
-          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          (name.isNotEmpty && name.trim().isNotEmpty) ? name.trim()[0].toUpperCase() : '?',
           style: GoogleFonts.poppins(
             color: const Color(0xFF0062FF),
             fontSize: 20,
@@ -743,7 +858,10 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Padding(
+              padding: EdgeInsets.all(16),
+              child: SkeletonLoader(itemCount: 6, height: 100),
+            )
           : _applicants.isEmpty
               ? Center(
                   child: Column(
@@ -781,9 +899,9 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
                         : createdRaw;
                     final status = (a['status'] ?? 'Pending').toString();
                     final isShortlisted = status.toLowerCase() == 'shortlisted';
+                    final isInterviewScheduled = status.toLowerCase().contains('interview');
 
-                    final profilePic =
-                        (a['profilePic'] ?? a['profileImage'] ?? '').toString();
+                    final profilePic = (a['profilePicture'] ?? a['profilePic'] ?? a['profileImage'] ?? '').toString();
 
                     return Container(
                       decoration: BoxDecoration(
@@ -822,27 +940,26 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
                                   child: profilePic.isNotEmpty
-                                      ? (profilePic.startsWith('http')
-                                          ? Image.network(
-                                              profilePic,
-                                              width: 50,
-                                              height: 50,
-                                              fit: BoxFit.cover,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                return _buildInitials(name);
-                                              },
-                                            )
-                                          : Image.asset(
-                                              profilePic,
-                                              width: 50,
-                                              height: 50,
-                                              fit: BoxFit.cover,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                return _buildInitials(name);
-                                              },
-                                            ))
+                                      ? Image.network(
+                                          profilePic.startsWith('http') 
+                                              ? profilePic 
+                                              : 'http://13.203.67.154:3000/$profilePic',
+                                          width: 50,
+                                          height: 50,
+                                          fit: BoxFit.cover,
+                                          loadingBuilder: (context, child, loadingProgress) {
+                                            if (loadingProgress == null) return child;
+                                            return Shimmer.fromColors(
+                                              baseColor: Colors.grey[300]!,
+                                              highlightColor: Colors.grey[100]!,
+                                              child: Container(color: Colors.white),
+                                            );
+                                          },
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                            return _buildInitials(name);
+                                          },
+                                        )
                                       : _buildInitials(name),
                                 ),
                                 const SizedBox(width: 16),
@@ -888,7 +1005,9 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
                                   decoration: BoxDecoration(
                                     color: isShortlisted
                                         ? const Color(0xFFE8F5E9)
-                                        : const Color(0xFFFFF3E0),
+                                        : isInterviewScheduled 
+                                            ? Colors.blue.shade50
+                                            : const Color(0xFFFFF3E0),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -898,7 +1017,9 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
                                       fontWeight: FontWeight.w500,
                                       color: isShortlisted
                                           ? Colors.green[700]
-                                          : Colors.orange[800],
+                                          : isInterviewScheduled
+                                              ? Colors.blue[700]
+                                              : Colors.orange[800],
                                     ),
                                   ),
                                 ),
@@ -933,7 +1054,6 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
   bool _isLoadingProfile = true;
   DoctorProfileData? _profile;
   String? _error;
-
   bool _isRejecting = false;
 
   @override
@@ -966,10 +1086,68 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
         });
       }
     } catch (e) {
-      setState(() {
-        _error = 'Error loading profile: $e';
-        _isLoadingProfile = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = 'Error loading profile: $e';
+          _isLoadingProfile = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _rejectApplication() async {
+    final applicationId = widget.applicant['_id']?.toString() ??
+        widget.applicant['id']?.toString() ??
+        '';
+    final healthcareId = widget.applicant['healthcare_id']?.toString() ?? '';
+    
+    if (applicationId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Application ID not found')),
+      );
+      return;
+    }
+
+    setState(() => _isRejecting = true);
+
+    try {
+      final idToUse = healthcareId.isNotEmpty ? healthcareId : applicationId;
+      final uri = Uri.parse(
+          'http://13.203.67.154:3000/api/jobs/applied-jobs/jobs-edit/$idToUse');
+
+      final body = {
+        'status': 'rejected',
+        'applicationId': applicationId, 
+      };
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Application rejected')),
+          );
+          Navigator.pop(context, true); 
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to reject: ${response.statusCode}')),
+          );
+          setState(() => _isRejecting = false);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+        setState(() => _isRejecting = false);
+      }
     }
   }
 
@@ -998,80 +1176,6 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
     );
   }
 
-  Future<void> _rejectApplication() async {
-    final applicationId = widget.applicant['_id']?.toString() ??
-        widget.applicant['id']?.toString() ??
-        '';
-    final healthcareId = widget.applicant['healthcare_id']?.toString() ?? '';
-    
-    print('------------------------------------------------');
-    print('🔴 Rejecting Application');
-    print('🔴 Applicant Data: ${widget.applicant}');
-    print('🔴 Application ID: $applicationId');
-    print('🔴 Healthcare ID: $healthcareId');
-    print('------------------------------------------------');
-
-    if (applicationId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Application ID not found')),
-      );
-      return;
-    }
-
-    setState(() => _isRejecting = true);
-
-    try {
-      // User hint: "end params - healthcare_id"
-      // Attempting to use healthcare_id in URL if available, otherwise fallback to applicationId (though that failed with 404)
-      final idToUse = healthcareId.isNotEmpty ? healthcareId : applicationId;
-      
-      final uri = Uri.parse(
-          'http://13.203.67.154:3000/api/jobs/applied-jobs/jobs-edit/$idToUse');
-      
-      print('🔴 Request URL: $uri');
-
-      final body = {
-        'status': 'rejected',
-        'applicationId': applicationId, // Sending applicationId in body just in case
-      };
-      
-      print('🔴 Request Body: $body');
-
-      final response = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-
-      print('🔴 Response Status: ${response.statusCode}');
-      print('🔴 Response Body: ${response.body}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Application rejected')),
-          );
-          Navigator.pop(context, true); // Go back to list with success flag
-        }
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to reject: ${response.statusCode}')),
-          );
-          setState(() => _isRejecting = false);
-        }
-      }
-    } catch (e) {
-      print('🔴 Error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
-        setState(() => _isRejecting = false);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final firstName =
@@ -1090,18 +1194,10 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
         ? createdRaw.split('T').first
         : createdRaw;
     final status = (widget.applicant['status'] ?? '').toString();
-    print('🔍 Hospital Side - Applicant Raw: ${widget.applicant}');
-    print('🔍 Hospital Side - isCvFromProfile Raw: ${widget.applicant['isCvFromProfile']}');
-    
-    final isCvFromProfile = (widget.applicant['isCvFromProfile'] ?? 'false').toString().toLowerCase() == 'true';
-    print('🔍 Hospital Side - isCvFromProfile Parsed: $isCvFromProfile');
-    
-    final manualCv = (widget.applicant['cvResume'] ?? widget.applicant['resume'] ?? widget.applicant['cv'] ?? '').toString();
-    print('🔍 Hospital Side - manualCv: $manualCv');
-    
-    final profileCv = _profile?.cv ?? '';
-    print('🔍 Hospital Side - profileCv: $profileCv');
 
+    final isCvFromProfile = (widget.applicant['isCvFromProfile'] ?? 'false').toString().toLowerCase() == 'true';
+    final manualCv = (widget.applicant['cvResume'] ?? widget.applicant['resume'] ?? widget.applicant['cv'] ?? '').toString();
+    final profileCv = _profile?.cv ?? '';
     final resume = isCvFromProfile ? profileCv : manualCv;
     final location = (widget.applicant['location'] ?? '').toString();
     final notes = (widget.applicant['notes'] ?? '').toString();
@@ -1145,7 +1241,7 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
         profile != null && profile.name.isNotEmpty ? profile.name : fullNameFromApp;
     final speciality = profile?.speciality ?? '';
 
-    final profilePic = (profile?.profilePicture ?? widget.applicant['profilePic'] ?? widget.applicant['profileImage'] ?? '').toString();
+    final profilePic = (profile?.profilePicture ?? widget.applicant['profilePicture'] ?? widget.applicant['profilePic'] ?? widget.applicant['profileImage'] ?? '').toString();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -1175,43 +1271,34 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
                   height: 100,
                   color: const Color(0xFFE0F0FF),
                   child: profilePic.isNotEmpty
-                      ? (profilePic.startsWith('http')
-                          ? Image.network(
-                              profilePic,
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Text(
-                                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF0062FF),
-                                    ),
-                                  ),
-                                );
-                              },
-                            )
-                          : Image.asset(
-                              profilePic,
-                              width: 100,
-                              height: 100,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Center(
-                                  child: Text(
-                                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF0062FF),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ))
+                      ? Image.network(
+                          profilePic.startsWith('http')
+                              ? profilePic
+                              : 'http://13.203.67.154:3000/$profilePic',
+                          width: 100,
+                          height: 100,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                              return Shimmer.fromColors(
+                                baseColor: Colors.grey[300]!,
+                                highlightColor: Colors.grey[100]!,
+                                child: Container(color: Colors.white),
+                              );
+                          },
+                          errorBuilder: (context, error, stackTrace) {
+                            return Center(
+                              child: Text(
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 40,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF0062FF),
+                                ),
+                              ),
+                            );
+                          },
+                        )
                       : Center(
                           child: Text(
                             displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
@@ -1397,40 +1484,77 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ScheduleInterviewPage(
-                        jobId: widget.jobId,
-                        candidateId:
-                            (widget.applicant['surgeonprofile_id'] ?? '')
-                                .toString(),
+            
+            // Schedule Interview Button
+            status.toLowerCase().contains('interview')
+                  ? SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: null, // Disabled
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.withOpacity(0.8),
+                          disabledBackgroundColor: Colors.green.withOpacity(0.8),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.check_circle, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Interview Scheduled',
+                              style: GoogleFonts.poppins(
+                                fontSize: 16,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ScheduleInterviewPage(
+                                jobId: widget.jobId,
+                                candidateId:
+                                    (widget.applicant['surgeonprofile_id'] ?? '')
+                                        .toString(),
+                              ),
+                            ),
+                          );
+                          
+                          if (result == true) {
+                            if (context.mounted) Navigator.pop(context, true);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0062FF),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          'Schedule Interview',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
                     ),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0062FF),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: Text(
-                  'Schedule Interview',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -1498,7 +1622,6 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
   }
 }
 
-// ----------------- ApplicantsOverview (simple) -----------------
 class ApplicantsOverview extends StatelessWidget {
   final Map<String, List<Map<String, dynamic>>> applicantsByJobId;
   const ApplicantsOverview({super.key, required this.applicantsByJobId});
@@ -1559,7 +1682,6 @@ class ApplicantsOverview extends StatelessWidget {
   }
 }
 
-// ----------------- PostJobPlaceholder -----------------
 class PostJobPlaceholder extends StatelessWidget {
   const PostJobPlaceholder({super.key});
   @override
@@ -1568,7 +1690,6 @@ class PostJobPlaceholder extends StatelessWidget {
   }
 }
 
-// ----------------- InterviewsPlaceholder -----------------
 class InterviewsPlaceholder extends StatelessWidget {
   final void Function(BuildContext) onScheduleInterview;
   const InterviewsPlaceholder({super.key, required this.onScheduleInterview});

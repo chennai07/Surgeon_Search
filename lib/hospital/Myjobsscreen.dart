@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/hospital/applicantcard.dart';
 import 'package:doc/hospital/JobDetailsScreen.dart';
+import 'package:doc/widgets/skeleton_loader.dart';
+import 'package:shimmer/shimmer.dart';
 
 class MyJobsPage extends StatefulWidget {
   final VoidCallback? onHospitalNameTap;
@@ -30,6 +32,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
   String? _resolvedHealthcareId;
   String _hospitalName = ''; // Added
   String? _hospitalLogoUrl; // Added for logo
+  bool _isHeaderLoading = true;
 
   @override
   void initState() {
@@ -67,13 +70,18 @@ class _MyJobsPageState extends State<MyJobsPage> {
                setState(() {
                  if (name != null) _hospitalName = name.toString();
                  if (logo != null) _hospitalLogoUrl = logo.toString();
+                 _isHeaderLoading = false;
                });
              }
           }
         }
+      } else {
+        // ID not found, stop loading
+        if (mounted) setState(() => _isHeaderLoading = false);
       }
     } catch (e) {
       debugPrint('Error fetching hospital name: $e');
+      if (mounted) setState(() => _isHeaderLoading = false);
     }
   }
 
@@ -167,6 +175,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
               if (logo != null) {
                 _hospitalLogoUrl = logo.toString();
               }
+              _isHeaderLoading = false;
             }
           }
         } catch (e) {
@@ -233,80 +242,93 @@ class _MyJobsPageState extends State<MyJobsPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ---------- HEADER CARD ----------
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.08),
-                      blurRadius: 12,
-                      spreadRadius: 1,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    // Hospital Logo
-                    ClipOval(
-                      child: (_hospitalLogoUrl != null && _hospitalLogoUrl!.isNotEmpty)
-                          ? Image.network(
-                              _hospitalLogoUrl!,
-                              height: 40,
-                              width: 40,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Image.asset(
+              if (_isHeaderLoading && _hospitalName.isEmpty)
+                const Padding(
+                   padding: EdgeInsets.only(bottom: 20),
+                   child: ProfileHeaderSkeleton(),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Hospital Logo
+                      ClipOval(
+                        child: Container(
+                          height: 40,
+                          width: 40,
+                          decoration: const BoxDecoration(shape: BoxShape.circle),
+                          child: (_hospitalLogoUrl != null && _hospitalLogoUrl!.isNotEmpty)
+                              ? Image.network(
+                                  _hospitalLogoUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Shimmer.fromColors(
+                                      baseColor: Colors.grey[300]!,
+                                      highlightColor: Colors.grey[100]!,
+                                      child: Container(color: Colors.white),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      "assets/logo.png",
+                                      fit: BoxFit.contain,
+                                    );
+                                  },
+                                )
+                              : Image.asset(
                                   "assets/logo.png",
-                                  height: 40,
-                                  width: 40,
                                   fit: BoxFit.contain,
-                                );
-                              },
-                            )
-                          : Image.asset(
-                              "assets/logo.png",
-                              height: 40,
-                              width: 40,
-                              fit: BoxFit.contain,
-                            ),
-                    ),
-                    const SizedBox(width: 12),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
 
-                    // Hospital Name (tappable to go to profile)
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: widget.onHospitalNameTap,
-                        child: Text(
-                          _hospitalName.isNotEmpty ? _hospitalName : "Hospital",
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
+                      // Hospital Name (tappable to go to profile)
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: widget.onHospitalNameTap,
+                          child: Text(
+                            _hospitalName.isNotEmpty ? _hospitalName : "Hospital",
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
                       ),
-                    ),
 
-                    // Notification Icon
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.blue, width: 1.2),
+                      // Notification Icon
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue, width: 1.2),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none,
+                          color: Colors.blue,
+                          size: 22,
+                        ),
                       ),
-                      child: const Icon(
-                        Icons.notifications_none,
-                        color: Colors.blue,
-                        size: 22,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
 
               const SizedBox(height: 20),
 
@@ -422,11 +444,9 @@ class _MyJobsPageState extends State<MyJobsPage> {
               const SizedBox(height: 16),
 
               if (_isLoading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: CircularProgressIndicator(),
-                  ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: SkeletonLoader(itemCount: 4, height: 180),
                 )
               else if (_error != null)
                 Padding(

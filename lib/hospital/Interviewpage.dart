@@ -59,12 +59,34 @@ class _ScheduleInterviewPageState extends State<ScheduleInterviewPage> {
   }
 
   Future<void> pickEndTime() async {
+    if (startTime == "Start time") {
+       ScaffoldMessenger.of(context).showSnackBar(
+         const SnackBar(content: Text('Please select Start Time first')),
+       );
+       return;
+    }
+
     final t = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
 
     if (t != null) {
+      try {
+        final start = _parseTime(startTime);
+        final double startVal = start.hour + start.minute / 60.0;
+        final double endVal = t.hour + t.minute / 60.0;
+
+        if (endVal <= startVal) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('End time must be after start time')),
+          );
+          return;
+        }
+      } catch (e) {
+        print('Time comparison error: $e');
+      }
+
       setState(() => endTime = t.format(context));
     }
   }
@@ -92,6 +114,25 @@ class _ScheduleInterviewPageState extends State<ScheduleInterviewPage> {
         const SnackBar(content: Text('Please select date and time slot.')),
       );
       return;
+    }
+
+    // Validate Start Time < End Time
+    try {
+      final start = _parseTime(startTime);
+      final end = _parseTime(endTime);
+      
+      final now = DateTime.now();
+      final startDt = DateTime(now.year, now.month, now.day, start.hour, start.minute);
+      final endDt = DateTime(now.year, now.month, now.day, end.hour, end.minute);
+      
+      if (endDt.isBefore(startDt) || endDt.isAtSameMomentAs(startDt)) {
+         ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('End time must be greater than start time')),
+        );
+        return;
+      }
+    } catch (e) {
+      print('Error parsing time: $e');
     }
 
     // Get healthcare_id
@@ -437,5 +478,34 @@ class _ScheduleInterviewPageState extends State<ScheduleInterviewPage> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
+  }
+  TimeOfDay _parseTime(String timeStr) {
+    try {
+      // Clean up the string (trim spaces/non-breaking spaces)
+      timeStr = timeStr.trim().replaceAll('\u00A0', ' ');
+      
+      if (timeStr.toUpperCase().contains("AM") || timeStr.toUpperCase().contains("PM")) {
+        final parts = timeStr.split(" ");
+        if (parts.length < 2) throw FormatException("Invalid time format");
+        
+        final timeParts = parts[0].split(":");
+        if (timeParts.length < 2) throw FormatException("Invalid time parts");
+
+        int hour = int.parse(timeParts[0]);
+        int minute = int.parse(timeParts[1]);
+        final period = parts[1].toUpperCase();
+
+        if (period == "PM" && hour != 12) hour += 12;
+        if (period == "AM" && hour == 12) hour = 0;
+        return TimeOfDay(hour: hour, minute: minute);
+      } else {
+        final parts = timeStr.split(":");
+         if (parts.length < 2) throw FormatException("Invalid 24h format");
+        return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+      }
+    } catch (e) {
+      print('Time parsing error: $e');
+      throw e;
+    }
   }
 }

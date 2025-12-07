@@ -4,6 +4,9 @@ import 'package:http/http.dart' as http;
 import 'package:doc/utils/session_manager.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
+import 'package:doc/widgets/skeleton_loader.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:doc/Navbar.dart';
 
 class Applicants extends StatefulWidget {
   final String? healthcareId;
@@ -22,6 +25,12 @@ class _ApplicantsState extends State<Applicants> {
   final TextEditingController qualificationCtrl = TextEditingController();
   final TextEditingController experienceCtrl = TextEditingController();
 
+  // Hospital Profile Logic
+  String _hospitalName = '';
+  String? _hospitalLogoUrl;
+  bool _isProfileLoading = true;
+
+
   final TextEditingController deadlineCtrl = TextEditingController();
 
   String? department;
@@ -34,6 +43,49 @@ class _ApplicantsState extends State<Applicants> {
   bool agree = false;
 
   bool isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchHospitalProfile();
+  }
+
+  Future<void> _fetchHospitalProfile() async {
+    try {
+      String? id = widget.healthcareId;
+      if (id == null || id.isEmpty) {
+        id = await SessionManager.getHealthcareId();
+      }
+      if (id == null || id.isEmpty) {
+        id = await SessionManager.getProfileId();
+      }
+
+      if (id != null && id.isNotEmpty) {
+        final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$id');
+        final response = await http.get(uri);
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+          final data = body is Map && body['data'] != null ? body['data'] : body;
+          if (data is Map) {
+             final name = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
+             final logo = data['hospitalLogo'];
+             if (mounted) {
+               setState(() {
+                 if (name != null) _hospitalName = name.toString();
+                 if (logo != null) _hospitalLogoUrl = logo.toString();
+                 _isProfileLoading = false;
+               });
+             }
+          }
+        }
+      } else {
+        if (mounted) setState(() => _isProfileLoading = false);
+      }
+    } catch (e) {
+      debugPrint('Error fetching hospital name: $e');
+      if (mounted) setState(() => _isProfileLoading = false);
+    }
+  }
 
   // ------------------ DATE PICKER ------------------
   Future<void> pickDeadline() async {
@@ -220,16 +272,33 @@ class _ApplicantsState extends State<Applicants> {
 
       if (!mounted) return;
 
-      if (resp.statusCode == 200 || resp.statusCode == 201) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ Job posted successfully!'),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-        Navigator.pop(context);
-      } else {
+        if (resp.statusCode == 200 || resp.statusCode == 201) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Job posted successfully!'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+          
+          // Redirect to My Jobs screen (Navbar)
+          // We need to pass valid hospitalData. We have healthcare_id.
+          final Map<String, dynamic> navData = {
+            'healthcare_id': finalHealthcareId,
+            'hospitalName': _hospitalName,
+            'hospitalLogo': _hospitalLogoUrl,
+            // Add other fields if available/needed by Navbar or its children
+          };
+
+          // We use pushAndRemoveUntil to reset the stack and go to the Navbar (which defaults to Tab 0 - My Jobs)
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => Navbar(hospitalData: navData),
+            ),
+            (route) => false,
+          );
+        } else {
         // Parse error message from backend
         String errorMsg = 'Failed to post job';
         try {
@@ -335,6 +404,9 @@ class _ApplicantsState extends State<Applicants> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ---------- HEADER CARD ----------
+
+
             const Text("Find the right surgeon for your team.\n"),
 
             _label("Job Title"),

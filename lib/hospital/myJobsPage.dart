@@ -324,7 +324,7 @@ class _MyJobsPageState extends State<MyJobsPage> {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      "Start hiring by posting your first job.",
+                      "Create a New Job Opening",
                       style: TextStyle(color: Colors.black54),
                     ),
                     const SizedBox(height: 18),
