@@ -841,6 +841,29 @@ class _ApplicantsListPageState extends State<ApplicantsListPage> {
           if (!merged.containsKey('profilePicture') && m.containsKey('profileImage')) {
              merged['profilePicture'] = m['profileImage'];
           }
+          
+          // Capture surgeonprofile_id (crucial for rejecting applications)
+          // The API may return it as 'surgeonprofile_id' or 'surgeonProfileId'
+          if (m.containsKey('surgeonprofile_id')) {
+            merged['surgeonprofile_id'] = m['surgeonprofile_id'];
+          } else if (m.containsKey('surgeonProfileId')) {
+            merged['surgeonprofile_id'] = m['surgeonProfileId'];
+          } else if (profileData is Map && profileData.containsKey('_id')) {
+            // If surgeonprofile_id is not explicitly present, the profile's _id might be it
+            merged['surgeonprofile_id'] = profileData['_id'];
+          }
+          
+          // Also capture healthcare_id if present
+          if (m.containsKey('healthcare_id')) {
+            merged['healthcare_id'] = m['healthcare_id'];
+          }
+          
+          // Capture job_id if present
+          if (m.containsKey('job_id')) {
+            merged['job_id'] = m['job_id'];
+          } else if (m.containsKey('jobId')) {
+            merged['job_id'] = m['jobId'];
+          }
 
           applicants.add(merged);
         }
@@ -1144,14 +1167,25 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
   }
 
   Future<void> _rejectApplication() async {
-    final applicationId = widget.applicant['_id']?.toString() ??
-        widget.applicant['id']?.toString() ??
-        '';
-    final healthcareId = widget.applicant['healthcare_id']?.toString() ?? '';
+    // Get the surgeonprofile_id from the applicant data
+    final surgeonProfileId = (widget.applicant['surgeonprofile_id'] ?? 
+        widget.applicant['surgeonProfileId'] ?? 
+        widget.applicant['profileId'] ?? 
+        '').toString().trim();
     
-    if (applicationId.isEmpty) {
+    // Get the job_id from widget.jobId
+    final jobId = (widget.jobId ?? '').toString().trim();
+    
+    if (surgeonProfileId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Application ID not found')),
+        const SnackBar(content: Text('Surgeon profile ID not found')),
+      );
+      return;
+    }
+    
+    if (jobId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Job ID not found')),
       );
       return;
     }
@@ -1159,14 +1193,16 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
     setState(() => _isRejecting = true);
 
     try {
-      final idToUse = healthcareId.isNotEmpty ? healthcareId : applicationId;
+      // Use the correct API endpoint format: /api/jobs/applied-jobs/jobs-edit/:surgeonprofile_id/:job_id
       final uri = Uri.parse(
-          'http://13.203.67.154:3000/api/jobs/applied-jobs/jobs-edit/$idToUse');
+          'http://13.203.67.154:3000/api/jobs/applied-jobs/jobs-edit/$surgeonProfileId/$jobId');
 
       final body = {
         'status': 'rejected',
-        'applicationId': applicationId, 
       };
+
+      print('🔴 Rejecting application - surgeonProfileId: $surgeonProfileId, jobId: $jobId');
+      print('🔴 API URL: ${uri.toString()}');
 
       final response = await http.post(
         uri,
@@ -1174,25 +1210,38 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
         body: jsonEncode(body),
       );
 
+      print('🔴 Response status: ${response.statusCode}');
+      print('🔴 Response body: ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Application rejected')),
+            const SnackBar(
+              content: Text('Application rejected successfully'),
+              backgroundColor: Colors.green,
+            ),
           );
           Navigator.pop(context, true); 
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to reject: ${response.statusCode}')),
+            SnackBar(
+              content: Text('Failed to reject: ${response.statusCode}'),
+              backgroundColor: Colors.red,
+            ),
           );
           setState(() => _isRejecting = false);
         }
       }
     } catch (e) {
+      print('🔴 Error rejecting application: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
         setState(() => _isRejecting = false);
       }
