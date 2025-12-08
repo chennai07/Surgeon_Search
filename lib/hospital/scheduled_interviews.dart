@@ -395,19 +395,23 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
 
           const SizedBox(height: 8),
 
-          const Text(
-            'Interview Scheduled',
-            style: TextStyle(
-                fontSize: 17, fontWeight: FontWeight.w700, color: Colors.black),
+          // Applicant Name (Big and prominent)
+          Text(
+            interview['fullName']?.toString() ?? 
+            interview['applicantName']?.toString() ?? 
+            interview['surgeonName']?.toString() ?? 
+            'Applicant',
+            style: const TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w700, color: Colors.black),
           ),
           const SizedBox(height: 4),
           const Text('In-Person', style: TextStyle(fontSize: 14, color: Colors.grey)),
 
           const SizedBox(height: 12),
 
-          /// Coordinator Row
+          /// Coordinator Row - Name on the right
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               CircleAvatar(
                 radius: 26,
@@ -421,9 +425,13 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
                     : null,
                 child: (interview['profilePicture'] == null || interview['profilePicture'].toString().isEmpty)
                     ? Text(
-                        coordinatorName.isNotEmpty
-                            ? coordinatorName[0].toUpperCase()
-                            : 'C',
+                        (interview['fullName']?.toString() ?? 
+                         interview['applicantName']?.toString() ?? 
+                         'A').isNotEmpty
+                            ? (interview['fullName']?.toString() ?? 
+                               interview['applicantName']?.toString() ?? 
+                               'A')[0].toUpperCase()
+                            : 'A',
                         style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -437,15 +445,27 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      coordinatorName,
-                      style: const TextStyle(
-                          fontSize: 16, fontWeight: FontWeight.w700),
+                    Row(
+                      children: [
+                        const Text(
+                          'Coordinator: ',
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        ),
+                        Expanded(
+                          child: Text(
+                            coordinatorName,
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w600, color: Colors.black87),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text('Coordinator', style: const TextStyle(color: Colors.grey)),
                     if (coordinatorPhone.isNotEmpty)
-                      Text(coordinatorPhone, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(coordinatorPhone, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      ),
                   ],
                 ),
               ),

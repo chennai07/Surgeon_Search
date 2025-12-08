@@ -330,18 +330,13 @@ class _MyJobsPageState extends State<MyJobsPage> {
                 ),
                 child: Column(
                   children: [
-                    const Text(
-                      "No job openings yet",
+                  const Text(
+                      "Create a New Job Opening",
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: Colors.black87,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Create a New Job Opening",
-                      style: TextStyle(color: Colors.black54),
                     ),
                     const SizedBox(height: 18),
                     ElevatedButton.icon(

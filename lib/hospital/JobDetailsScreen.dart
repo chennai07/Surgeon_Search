@@ -381,30 +381,43 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     _sectionText(qualifications), // Displaying as text
                     _sectionTitle("Application Deadline:"),
                     _sectionText(deadline),
-                    const SizedBox(height: 30),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xff0062FF),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        onPressed: widget.onViewApplicants,
-                        child: const Text(
-                          "View Applicants",
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
+
                     const SizedBox(height: 80),
                   ],
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xff0062FF),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  onPressed: widget.onViewApplicants,
+                  child: const Text(
+                    "View Applicants",
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -544,11 +557,32 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
   }
 
   Future<void> _handleExtendJob(BuildContext context) async {
+    // Get the current deadline from the job data
+    DateTime firstSelectableDate = DateTime.now().add(const Duration(days: 1));
+    
+    final currentDeadline = _jobData['applicationDeadline']?.toString() ?? '';
+    if (currentDeadline.isNotEmpty && currentDeadline != 'N/A') {
+      try {
+        // Parse the deadline (could be in format "2025-12-08" or "2025-12-08T00:00:00.000Z")
+        final deadlineDate = DateTime.parse(currentDeadline.split('T')[0]);
+        // The new deadline must be after the current deadline
+        firstSelectableDate = deadlineDate.add(const Duration(days: 1));
+      } catch (e) {
+        print('Error parsing deadline: $e');
+      }
+    }
+    
+    // If the calculated first date is in the past, use tomorrow
+    if (firstSelectableDate.isBefore(DateTime.now())) {
+      firstSelectableDate = DateTime.now().add(const Duration(days: 1));
+    }
+
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 30)),
-      firstDate: DateTime.now(),
+      initialDate: firstSelectableDate,
+      firstDate: firstSelectableDate,
       lastDate: DateTime(2100),
+      helpText: 'Select a date after the current deadline',
     );
 
     if (picked != null) {
@@ -1273,6 +1307,242 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
     );
   }
 
+  void _showRescheduleDialog() {
+    String selectedDate = 'DD/MM/YYYY';
+    String startTime = 'Start time';
+    String endTime = 'End time';
+    DateTime? pickedDate;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Reschedule Interview'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Date Picker
+                    GestureDetector(
+                      onTap: () async {
+                        final d = await showDatePicker(
+                          context: context,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime(2100),
+                          initialDate: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (d != null) {
+                          pickedDate = d;
+                          setDialogState(() {
+                            selectedDate = '${d.day}/${d.month}/${d.year}';
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+                            const SizedBox(width: 10),
+                            Text(
+                              selectedDate,
+                              style: TextStyle(
+                                color: selectedDate == 'DD/MM/YYYY' ? Colors.grey : Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // Start Time Picker
+                    GestureDetector(
+                      onTap: () async {
+                        final t = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+                        if (t != null) {
+                          setDialogState(() {
+                            startTime = t.format(context);
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                            const SizedBox(width: 10),
+                            Text(
+                              startTime,
+                              style: TextStyle(
+                                color: startTime == 'Start time' ? Colors.grey : Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    // End Time Picker
+                    GestureDetector(
+                      onTap: () async {
+                        final t = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.now(),
+                        );
+                        if (t != null) {
+                          setDialogState(() {
+                            endTime = t.format(context);
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.access_time_filled, size: 18, color: Colors.grey),
+                            const SizedBox(width: 10),
+                            Text(
+                              endTime,
+                              style: TextStyle(
+                                color: endTime == 'End time' ? Colors.grey : Colors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (pickedDate == null || startTime == 'Start time' || endTime == 'End time') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please select date and time')),
+                      );
+                      return;
+                    }
+                    Navigator.pop(ctx);
+                    _rescheduleInterview(pickedDate!, startTime, endTime);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                  ),
+                  child: const Text('Reschedule', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _rescheduleInterview(
+    DateTime newDate,
+    String newStartTime,
+    String newEndTime,
+  ) async {
+    // Get the surgeon profile ID and job ID
+    final surgeonProfileId = (widget.applicant['surgeonprofile_id'] ?? 
+        widget.applicant['surgeonProfileId'] ?? 
+        widget.applicant['profileId'] ?? 
+        '').toString().trim();
+    final jobId = (widget.jobId ?? '').toString().trim();
+
+    if (surgeonProfileId.isEmpty || jobId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Missing interview details. Cannot reschedule.')),
+      );
+      return;
+    }
+
+    // Format the date as ISO string
+    final isoDate = '${newDate.year}-${newDate.month.toString().padLeft(2, '0')}-${newDate.day.toString().padLeft(2, '0')}T00:00:00.000+00:00';
+
+    final uri = Uri.parse(
+      'http://13.203.67.154:3000/api/interview/interview-edit/$surgeonProfileId/$jobId',
+    );
+
+    final payload = {
+      'interviewDate': isoDate,
+      'startTime': newStartTime,
+      'endTime': newEndTime,
+    };
+
+    print('📅 Rescheduling interview: $uri');
+    print('📅 Payload: $payload');
+
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final response = await http.put(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(payload),
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Dismiss loading
+
+      print('📅 Reschedule response: ${response.statusCode} ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Interview rescheduled successfully!')),
+        );
+        // Pop back with true to refresh the list
+        if (mounted) Navigator.pop(context, true);
+      } else {
+        String errorMsg = 'Failed to reschedule interview (${response.statusCode})';
+        try {
+          final data = jsonDecode(response.body);
+          if (data is Map && data['message'] != null) {
+            errorMsg = data['message'].toString();
+          }
+        } catch (_) {}
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMsg)),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Dismiss loading
+      print('📅 Reschedule error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error rescheduling: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final firstName =
@@ -1669,35 +1939,62 @@ class _ApplicantProfilePageState extends State<ApplicantProfilePage> {
               ],
               // Schedule Interview Button
               status.toLowerCase().contains('interview')
-                  ? SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: null, // Disabled
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.withOpacity(0.8),
-                          disabledBackgroundColor: Colors.green.withOpacity(0.8),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                  ? Column(
+                      children: [
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: null, // Disabled
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green.withOpacity(0.8),
+                              disabledBackgroundColor: Colors.green.withOpacity(0.8),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.check_circle, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Interview Scheduled',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.check_circle, color: Colors.white),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Interview Scheduled',
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showRescheduleDialog(),
+                            icon: const Icon(Icons.edit_calendar, size: 18),
+                            label: Text(
+                              'Reschedule Interview',
                               style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                color: Colors.white,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ],
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.blue,
+                              side: const BorderSide(color: Colors.blue, width: 1.5),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     )
                   : SizedBox(
                       width: double.infinity,
