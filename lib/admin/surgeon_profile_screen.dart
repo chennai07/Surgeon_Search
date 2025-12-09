@@ -92,7 +92,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
         slivers: [
           // Custom App Bar with Profile Header
           SliverAppBar(
-            expandedHeight: 300,
+            expandedHeight: 340,
             pinned: true,
             backgroundColor: const Color(0xFF1E3A5F),
             leading: IconButton(
@@ -264,6 +264,8 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
                 ),
               ),
             ],
+            // Bottom spacing to prevent overflow
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -544,8 +546,6 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
             icon: Icons.settings_outlined,
             iconColor: Colors.grey.shade600,
             children: [
-              if (_profileData['profile_id'] != null)
-                _buildInfoRow(Icons.tag, 'Profile ID', _profileData['profile_id'].toString()),
               if (_profileData['createdAt'] != null)
                 _buildInfoRow(Icons.calendar_today_outlined, 'Registered On', _formatDate(_profileData['createdAt'])),
               _buildInfoRow(

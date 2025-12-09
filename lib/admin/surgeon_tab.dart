@@ -200,6 +200,9 @@ class _SurgeonTabState extends State<SurgeonTab> {
                           _selectedSpeciality = 'All';
                           _selectedState = 'All';
                         });
+                        Navigator.pop(context);
+                        setState(() {});
+                        _applyFilters();
                       },
                       child: const Text('Reset'),
                     ),

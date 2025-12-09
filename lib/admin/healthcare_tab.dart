@@ -183,6 +183,9 @@ class _HealthcareTabState extends State<HealthcareTab> {
                           _selectedCategory = 'All';
                           _showVerifiedOnly = false;
                         });
+                        Navigator.pop(context);
+                        setState(() {});
+                        _applyFilters();
                       },
                       child: const Text('Reset'),
                     ),

@@ -19,6 +19,7 @@ class HealthcareProfileScreen extends StatefulWidget {
 
 class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
   bool _isLoading = true;
+  bool _isUpdatingKYC = false;
   Map<String, dynamic> _profileData = {};
   String? _errorMessage;
 
@@ -65,6 +66,204 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
     }
   }
 
+  Future<void> _updateKYCStatus(bool newStatus) async {
+    setState(() => _isUpdatingKYC = true);
+
+    try {
+      final url = Uri.parse(
+          'http://13.203.67.154:3000/api/healthcare/edit/${widget.healthcareId}');
+      
+      final response = await http.put(
+        url,
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'isKYCVerified': newStatus.toString()},
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _profileData['isKYCVerified'] = newStatus;
+          _isUpdatingKYC = false;
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(newStatus 
+                  ? '✅ KYC Verified Successfully' 
+                  : '⚠️ KYC Verification Removed'),
+              backgroundColor: newStatus ? Colors.green : Colors.orange,
+            ),
+          );
+        }
+      } else {
+        setState(() => _isUpdatingKYC = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to update KYC status'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating KYC: $e');
+      setState(() => _isUpdatingKYC = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showKYCEditDialog() {
+    final isCurrentlyVerified = _profileData['isKYCVerified'] == true;
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Icon
+            Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: isCurrentlyVerified 
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                isCurrentlyVerified ? Icons.verified : Icons.pending,
+                size: 35,
+                color: isCurrentlyVerified ? Colors.green : Colors.orange,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // Title
+            const Text(
+              'KYC Verification Status',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E3A5F),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Current Status
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: isCurrentlyVerified 
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isCurrentlyVerified ? Icons.check_circle : Icons.warning,
+                    size: 18,
+                    color: isCurrentlyVerified ? Colors.green : Colors.orange,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isCurrentlyVerified ? 'Currently Verified' : 'Not Verified',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: isCurrentlyVerified ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            // Action Buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    child: const Text(
+                      'Cancel',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isUpdatingKYC
+                        ? null
+                        : () {
+                            Navigator.pop(context);
+                            _updateKYCStatus(!isCurrentlyVerified);
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isCurrentlyVerified 
+                          ? Colors.orange 
+                          : Colors.green,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      isCurrentlyVerified ? 'Remove Verification' : 'Verify KYC',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,7 +272,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
         slivers: [
           // Custom App Bar with Profile Header
           SliverAppBar(
-            expandedHeight: 260,
+            expandedHeight: 320,
             pinned: true,
             backgroundColor: const Color(0xFF2E7D32),
             leading: IconButton(
@@ -92,6 +291,31 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
               ),
             ),
             actions: [
+              // Edit KYC Button
+              IconButton(
+                onPressed: _showKYCEditDialog,
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: _isUpdatingKYC
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.edit,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                ),
+              ),
               IconButton(
                 onPressed: _loadProfileDetails,
                 icon: Container(
@@ -217,35 +441,52 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                 textAlign: TextAlign.center,
               ),
             ],
-            if (isKYCVerified) ...[
-              const SizedBox(height: 10),
-              Container(
+            const SizedBox(height: 10),
+            // KYC Badge
+            GestureDetector(
+              onTap: _showKYCEditDialog,
+              child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: isKYCVerified 
+                      ? Colors.white.withOpacity(0.25)
+                      : Colors.orange.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isKYCVerified 
+                        ? Colors.white.withOpacity(0.5)
+                        : Colors.orange.withOpacity(0.5),
+                  ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(
-                      Icons.verified,
+                    Icon(
+                      isKYCVerified ? Icons.verified : Icons.pending,
                       color: Colors.white,
                       size: 16,
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'KYC Verified',
+                      isKYCVerified ? 'KYC Verified' : 'Pending Verification',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.white.withOpacity(0.95),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.edit,
+                      color: Colors.white.withOpacity(0.8),
+                      size: 12,
+                    ),
                   ],
                 ),
               ),
-            ],
+            ),
+            // Bottom spacing to prevent overflow
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -418,8 +659,6 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                 'KYC Status',
                 _profileData['isKYCVerified'] == true ? 'Verified' : 'Pending Verification',
               ),
-              if (_profileData['healthcare_id'] != null)
-                _buildInfoRow(Icons.tag, 'Healthcare ID', _profileData['healthcare_id'].toString()),
               if (_profileData['createdAt'] != null)
                 _buildInfoRow(Icons.calendar_today_outlined, 'Registered On', _formatDate(_profileData['createdAt'])),
             ],
