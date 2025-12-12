@@ -296,16 +296,16 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 18,
+                      runSpacing: 8,
                       children: [
                         _iconText(Icons.local_hospital, hospitalName),
-                        const SizedBox(width: 18),
                         _iconText(
                           Icons.location_on_outlined,
                           location,
                         ),
-                        const SizedBox(width: 18),
                         _iconText(Icons.school, experience),
                       ],
                     ),
@@ -314,6 +314,8 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                     // ---------- FULL TIME + SALARY BOX (Exact UI) ----------
                     Container(
                       height: 70,
+                      width: double.infinity,
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
                           colors: [Color(0xFF0062FF), Color(0xFF3E8BFF)],
@@ -321,6 +323,13 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
                           end: Alignment.centerRight,
                         ),
                         borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF0062FF).withOpacity(0.3),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
@@ -454,10 +463,19 @@ class _JobDetailScreenState extends State<JobDetailScreen> {
 
   Widget _iconText(IconData icon, String title) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 18, color: Colors.black54),
         const SizedBox(width: 6),
-        Text(title, style: const TextStyle(fontSize: 13)),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: Text(
+            title,
+            style: const TextStyle(fontSize: 13),
+            overflow: TextOverflow.ellipsis,
+            maxLines: 1,
+          ),
+        ),
       ],
     );
   }

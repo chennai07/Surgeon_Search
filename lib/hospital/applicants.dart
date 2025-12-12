@@ -29,6 +29,7 @@ class _ApplicantsState extends State<Applicants> {
   String _hospitalName = '';
   String? _hospitalLogoUrl;
   bool _isProfileLoading = true;
+  bool _isKYCVerified = true; // Default to true to avoid showing banner incorrectly
 
   // State and District for job location
   String? selectedState;
@@ -73,10 +74,12 @@ class _ApplicantsState extends State<Applicants> {
           if (data is Map) {
              final name = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
              final logo = data['hospitalLogo'];
+             final kycVerified = data['isKYCVerified'];
              if (mounted) {
                setState(() {
                  if (name != null) _hospitalName = name.toString();
                  if (logo != null) _hospitalLogoUrl = logo.toString();
+                 _isKYCVerified = kycVerified == true;
                  _isProfileLoading = false;
                });
              }
@@ -293,7 +296,7 @@ class _ApplicantsState extends State<Applicants> {
             'healthcare_id': finalHealthcareId,
             'hospitalName': _hospitalName,
             'hospitalLogo': _hospitalLogoUrl,
-            // Add other fields if available/needed by Navbar or its children
+            'isKYCVerified': _isKYCVerified, // Include KYC status to prevent banner from showing incorrectly
           };
 
           // We use pushAndRemoveUntil to reset the stack and go to the Navbar (which defaults to Tab 0 - My Jobs)

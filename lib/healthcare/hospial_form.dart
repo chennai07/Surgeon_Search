@@ -11,6 +11,8 @@ import 'package:doc/Navbar.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/Subscription Plan Screen/hospital_free_trial_screen.dart';
+import 'package:dropdown_search/dropdown_search.dart';
+import 'package:doc/model/indian_states_districts.dart';
 
 class HospitalForm extends StatefulWidget {
   final String healthcareId;
@@ -27,7 +29,8 @@ Future<Map<String, dynamic>> _addHealthcareProfile({
   required String hospitalName,
   required String phoneNumber,
   required String email,
-  required String location,
+  required String state,
+  required String district,
   required String facilityCategory,
   String? hospitalType,
   required List<String> departmentsAvailable,
@@ -47,7 +50,8 @@ Future<Map<String, dynamic>> _addHealthcareProfile({
       'hospitalName': hospitalName,
       'phoneNumber': phoneNumber,
       'email': email,
-      'location': location,
+      'state': state,
+      'district': district,
       'facilityCategory': facilityCategory,
       'hospitalOverview': hospitalOverview,
       'hrContact[fullName]': hrContact['fullName'] ?? '',
@@ -113,7 +117,8 @@ Future<Map<String, dynamic>> _updateHealthcareProfile({
   required String hospitalName,
   required String phoneNumber,
   required String email,
-  required String location,
+  required String state,
+  required String district,
   required String facilityCategory,
   String? hospitalType,
   required List<String> departmentsAvailable,
@@ -143,7 +148,8 @@ Future<Map<String, dynamic>> _updateHealthcareProfile({
       'hospitalName': hospitalName,
       'phoneNumber': phoneNumber,
       'email': email,
-      'location': location,
+      'state': state,
+      'district': district,
       'facilityCategory': facilityCategory,
       'hospitalOverview': hospitalOverview,
       'hrContact[fullName]': hrContact['fullName'] ?? '',
@@ -268,13 +274,24 @@ class _HospitalFormState extends State<HospitalForm> {
     hospitalNameController.text = d['hospitalName']?.toString() ?? '';
     phoneController.text = d['phoneNumber']?.toString() ?? '';
     emailController.text = d['email']?.toString() ?? '';
-    locationController.text = d['location']?.toString() ?? '';
     overviewController.text = d['hospitalOverview']?.toString() ?? '';
     websiteController.text = d['hospitalWebsite']?.toString() ?? '';
     hospitalLogoUrl = d['hospitalLogo']?.toString();
     
     print("🏥 Hospital Name: ${hospitalNameController.text}");
     print("🏥 Hospital Logo URL: $hospitalLogoUrl");
+    
+    // State and District prefill
+    final stateValue = d['state']?.toString() ?? '';
+    if (stateValue.isNotEmpty && IndianStatesAndDistricts.data.containsKey(stateValue)) {
+      selectedState = stateValue;
+      hospitalDistricts = IndianStatesAndDistricts.data[stateValue] ?? [];
+      
+      final districtValue = d['district']?.toString() ?? '';
+      if (districtValue.isNotEmpty && hospitalDistricts.contains(districtValue)) {
+        selectedDistrict = districtValue;
+      }
+    }
     
     // HR Contact
     if (d['hrContact'] is Map) {
@@ -407,7 +424,6 @@ class _HospitalFormState extends State<HospitalForm> {
   final TextEditingController hospitalNameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController locationController = TextEditingController();
   final TextEditingController overviewController = TextEditingController();
   final TextEditingController hrNameController = TextEditingController();
   final TextEditingController hrDesignationController = TextEditingController();
@@ -423,6 +439,11 @@ class _HospitalFormState extends State<HospitalForm> {
   String? hospitalLogoUrl;
   bool agreeTerms = false;
   String searchQuery = ""; // For search functionality
+
+  // State and District for hospital location
+  String? selectedState;
+  String? selectedDistrict;
+  List<String> hospitalDistricts = [];
 
   final List<String> facilityCategories = [
     "Medical Colleges",
@@ -486,7 +507,8 @@ class _HospitalFormState extends State<HospitalForm> {
       hospitalName: hospitalNameController.text.trim(),
       phoneNumber: phoneController.text.trim(),
       email: emailController.text.trim(),
-      location: locationController.text.trim(),
+      state: selectedState ?? '',
+      district: selectedDistrict ?? '',
       facilityCategory: selectedFacilityCategory ?? '',
       hospitalType: selectedHospitalSize,
       departmentsAvailable: List<String>.from(selectedDepartments),
@@ -568,8 +590,11 @@ class _HospitalFormState extends State<HospitalForm> {
       if (finalHospitalData['email'] == null || finalHospitalData['email'].toString().isEmpty) {
         finalHospitalData['email'] = emailController.text.trim();
       }
-      if (finalHospitalData['location'] == null || finalHospitalData['location'].toString().isEmpty) {
-        finalHospitalData['location'] = locationController.text.trim();
+      if (finalHospitalData['state'] == null || finalHospitalData['state'].toString().isEmpty) {
+        finalHospitalData['state'] = selectedState ?? '';
+      }
+      if (finalHospitalData['district'] == null || finalHospitalData['district'].toString().isEmpty) {
+        finalHospitalData['district'] = selectedDistrict ?? '';
       }
       // Include logo URL if returned by backend
       if (finalHospitalData['hospitalLogo'] == null || finalHospitalData['hospitalLogo'].toString().isEmpty) {
@@ -665,7 +690,8 @@ class _HospitalFormState extends State<HospitalForm> {
       hospitalName: hospitalNameController.text.trim(),
       phoneNumber: phoneController.text.trim(),
       email: emailController.text.trim(),
-      location: locationController.text.trim(),
+      state: selectedState ?? '',
+      district: selectedDistrict ?? '',
       facilityCategory: selectedFacilityCategory ?? '',
       hospitalType: selectedHospitalSize,
       departmentsAvailable: List<String>.from(selectedDepartments),
@@ -813,12 +839,96 @@ class _HospitalFormState extends State<HospitalForm> {
               ),
               const SizedBox(height: 15),
 
-              // Location
-              Text("Location", style: labelStyle),
+              // State
+              Text("State", style: labelStyle),
               const SizedBox(height: 8),
-              TextFormField(
-                controller: locationController,
-                decoration: fieldDecoration("Your location", Iconsax.location),
+              DropdownSearch<String>(
+                popupProps: const PopupProps.menu(
+                  showSearchBox: true,
+                  searchFieldProps: TextFieldProps(
+                    decoration: InputDecoration(
+                      hintText: "Search State",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                items: IndianStatesAndDistricts.data.keys.toList(),
+                dropdownDecoratorProps: DropDownDecoratorProps(
+                  dropdownSearchDecoration: InputDecoration(
+                    hintText: "Select State",
+                    prefixIcon: const Icon(Iconsax.location, size: 18),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 12,
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF4AB3F4)),
+                    ),
+                  ),
+                ),
+                selectedItem: selectedState,
+                onChanged: (value) {
+                  setState(() {
+                    selectedState = value;
+                    hospitalDistricts = IndianStatesAndDistricts.data[value] ?? [];
+                    selectedDistrict = null; // Reset district when state changes
+                  });
+                },
+              ),
+              const SizedBox(height: 15),
+
+              // District
+              Text("District", style: labelStyle),
+              const SizedBox(height: 8),
+              DropdownSearch<String>(
+                popupProps: const PopupProps.menu(
+                  showSearchBox: true,
+                  searchFieldProps: TextFieldProps(
+                    decoration: InputDecoration(
+                      hintText: "Search District",
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                items: hospitalDistricts,
+                dropdownDecoratorProps: DropDownDecoratorProps(
+                  dropdownSearchDecoration: InputDecoration(
+                    hintText: "Select District",
+                    prefixIcon: const Icon(Iconsax.map, size: 18),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 12,
+                    ),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.grey),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Color(0xFF4AB3F4)),
+                    ),
+                  ),
+                ),
+                selectedItem: selectedDistrict,
+                enabled: selectedState != null, // Disable if no state selected
+                onChanged: (value) {
+                  setState(() {
+                    selectedDistrict = value;
+                  });
+                },
               ),
               const SizedBox(height: 15),
 
