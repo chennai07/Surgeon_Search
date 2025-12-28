@@ -1,4 +1,4 @@
-package com.example.doc
+package `in`.surgeonsearch.doc
 
 import io.flutter.embedding.android.FlutterActivity
 
