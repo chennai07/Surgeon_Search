@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:doc/model/api_service.dart';
@@ -475,11 +475,28 @@ class _HospitalFormState extends State<HospitalForm> {
 
   final List<String> selectedDepartments = [];
 
-  // Image Picker
+  // Image Picker - Using FileType.any to force the file manager instead of gallery
   Future<void> pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() => hospitalLogo = File(picked.path));
+    try {
+      // Use FileType.any to force the standard system file manager/document picker
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+      );
+      
+      if (result != null && result.files.single.path != null) {
+        final path = result.files.single.path!;
+        final extension = path.split('.').last.toLowerCase();
+        
+        // Manual validation for image extensions
+        if (extension != 'jpg' && extension != 'jpeg' && extension != 'png') {
+          Get.snackbar("Invalid File", "Please select a JPG or PNG image.");
+          return;
+        }
+        
+        setState(() => hospitalLogo = File(path));
+      }
+    } catch (e) {
+      print("Error picking image: $e");
     }
   }
 

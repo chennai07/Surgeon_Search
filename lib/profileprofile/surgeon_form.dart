@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:google_fonts/google_fonts.dart';
@@ -555,14 +554,24 @@ Widget titleText(String text) => Padding(
     );
 
   Future<void> pickProfileImage() async {
-    _pickImage(ImageSource.gallery);
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
     try {
-      final picked = await ImagePicker().pickImage(source: source);
-      if (picked != null) {
-        final originalFile = File(picked.path);
+      // Use FileType.any to force the standard system file manager/document picker
+      // instead of the specialized photo picker/gallery.
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+      );
+      
+      if (result != null && result.files.single.path != null) {
+        final path = result.files.single.path!;
+        final extension = p.extension(path).toLowerCase();
+        
+        // Manual validation for image extensions
+        if (extension != '.jpg' && extension != '.jpeg' && extension != '.png') {
+          Get.snackbar("Invalid File", "Please select a JPG or PNG image.");
+          return;
+        }
+
+        final originalFile = File(path);
         final fileSize = await originalFile.length();
         
         // If file > 1MB, compress it
