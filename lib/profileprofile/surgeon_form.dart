@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:google_fonts/google_fonts.dart';
@@ -555,26 +556,22 @@ Widget titleText(String text) => Padding(
 
   Future<void> pickProfileImage() async {
     try {
-      // Use FileType.any to force the standard system file manager/document picker
-      // instead of the specialized photo picker/gallery.
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+      // Use ImagePicker which leverages Android's Photo Picker API (Android 13+)
+      // This is fully compliant with Google Play policies and doesn't require
+      // READ_EXTERNAL_STORAGE or READ_MEDIA_IMAGES permissions.
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 80, // Compress to 80% quality
       );
       
-      if (result != null && result.files.single.path != null) {
-        final path = result.files.single.path!;
-        final extension = p.extension(path).toLowerCase();
-        
-        // Manual validation for image extensions
-        if (extension != '.jpg' && extension != '.jpeg' && extension != '.png') {
-          Get.snackbar("Invalid File", "Please select a JPG or PNG image.");
-          return;
-        }
-
-        final originalFile = File(path);
+      if (pickedFile != null) {
+        final originalFile = File(pickedFile.path);
         final fileSize = await originalFile.length();
         
-        // If file > 1MB, compress it
+        // If file > 1MB, compress it further
         if (fileSize > 1024 * 1024) {
           try {
             final dir = await Directory.systemTemp.createTemp();
@@ -583,7 +580,7 @@ Widget titleText(String text) => Padding(
             final compressedFile = await FlutterImageCompress.compressAndGetFile(
               originalFile.path,
               targetPath,
-              quality: 70, // Adjust quality as needed
+              quality: 70,
               minWidth: 800,
               minHeight: 800,
             );
@@ -603,6 +600,12 @@ Widget titleText(String text) => Padding(
       }
     } catch (e) {
       print("Error picking image: $e");
+      Get.snackbar(
+        "Error",
+        "Failed to pick image. Please try again.",
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 

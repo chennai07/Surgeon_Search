@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:doc/model/api_service.dart';
@@ -475,28 +476,31 @@ class _HospitalFormState extends State<HospitalForm> {
 
   final List<String> selectedDepartments = [];
 
-  // Image Picker - Using FileType.any to force the file manager instead of gallery
+  // Image Picker - Using Android's Photo Picker API for Google Play compliance
   Future<void> pickImage() async {
     try {
-      // Use FileType.any to force the standard system file manager/document picker
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.any,
+      // Use ImagePicker which leverages Android's Photo Picker API (Android 13+)
+      // This is fully compliant with Google Play policies and doesn't require
+      // READ_EXTERNAL_STORAGE or READ_MEDIA_IMAGES permissions.
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85, // Good quality for logos
       );
       
-      if (result != null && result.files.single.path != null) {
-        final path = result.files.single.path!;
-        final extension = path.split('.').last.toLowerCase();
-        
-        // Manual validation for image extensions
-        if (extension != 'jpg' && extension != 'jpeg' && extension != 'png') {
-          Get.snackbar("Invalid File", "Please select a JPG or PNG image.");
-          return;
-        }
-        
-        setState(() => hospitalLogo = File(path));
+      if (pickedFile != null) {
+        setState(() => hospitalLogo = File(pickedFile.path));
       }
     } catch (e) {
       print("Error picking image: $e");
+      Get.snackbar(
+        "Error",
+        "Failed to pick image. Please try again.",
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 
