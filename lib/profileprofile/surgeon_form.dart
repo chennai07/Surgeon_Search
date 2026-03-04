@@ -14,7 +14,6 @@ import 'package:doc/profileprofile/surgeon_profile.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:doc/model/indian_states_districts.dart';
 import 'package:doc/utils/session_manager.dart';
-import 'package:doc/Subscription Plan Screen/subscription_planScreen.dart';
 import 'package:doc/homescreen/SearchjobScreen.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
  
@@ -515,11 +514,11 @@ class _SurgeonFormState extends State<SurgeonForm> {
         return;
       }
       
-      print('🚀 Navigating to SubscriptionPlanScreen...');
-      Navigator.push(
+      print('🚀 Navigating to ProfessionalProfileViewPage (Bypassing Subscription)...');
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const SubscriptionPlanScreen(),
+          builder: (_) => ProfessionalProfileViewPage(profileId: widget.profileId),
         ),
       );
       print('✅ Navigation completed!');
@@ -743,10 +742,11 @@ void _updateWorkExperienceData() {
         await SessionManager.saveFreeTrialFlag(true);
         
         if (mounted) {
-          Navigator.push(
+          // Bypassing SubscriptionPlanScreen
+          Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (_) => const SubscriptionPlanScreen(),
+              builder: (_) => ProfessionalProfileViewPage(profileId: widget.profileId),
             ),
           );
         }

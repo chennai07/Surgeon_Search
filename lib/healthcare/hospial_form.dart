@@ -13,7 +13,6 @@ import 'package:doc/healthcare/hospital_profile.dart';
 import 'package:doc/Navbar.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/utils/session_manager.dart';
-import 'package:doc/Subscription Plan Screen/hospital_free_trial_screen.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:doc/model/indian_states_districts.dart';
 
@@ -658,15 +657,11 @@ class _HospitalFormState extends State<HospitalForm> {
         }
       }
 
+      // Bypassing HospitalFreeTrialScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => HospitalFreeTrialScreen(
-            paymentAmount: paymentAmount,
-            facilityCategory: facilityCategory,
-            healthcareId: finalHealthcareId,
-            hospitalData: finalHospitalData,
-          ),
+          builder: (_) => Navbar(hospitalData: finalHospitalData),
         ),
       );
     } else {
