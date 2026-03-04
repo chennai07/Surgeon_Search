@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1244,16 +1246,41 @@ class _HospitalFormState extends State<HospitalForm> {
 
               // Terms Checkbox
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Checkbox(
-                    value: agreeTerms,
-                    onChanged: (v) => setState(() => agreeTerms = v!),
-                    activeColor: Colors.blue,
+                  SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: Checkbox(
+                      value: agreeTerms,
+                      onChanged: (v) => setState(() => agreeTerms = v!),
+                      activeColor: Colors.blue,
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Text(
-                      "I agree to the terms and conditions and privacy policy of the application",
-                      style: GoogleFonts.poppins(fontSize: 12),
+                    child: Text.rich(
+                      TextSpan(
+                        style: GoogleFonts.poppins(fontSize: 12, color: Colors.black),
+                        children: [
+                          const TextSpan(text: "I agree to the "),
+                          TextSpan(
+                            text: "terms & conditions",
+                            style: GoogleFonts.poppins(
+                              color: Colors.blue,
+                              decoration: TextDecoration.underline,
+                            ),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () async {
+                                final Uri url = Uri.parse('https://surgeonsearch.in/terms-conditions/');
+                                if (await canLaunchUrl(url)) {
+                                  await launchUrl(url);
+                                }
+                              },
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
