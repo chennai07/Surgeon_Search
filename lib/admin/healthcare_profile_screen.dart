@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 
 /// HealthcareProfileScreen displays detailed information about a hospital/healthcare.
 class HealthcareProfileScreen extends StatefulWidget {
@@ -37,7 +39,8 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
 
     try {
       final url = Uri.parse(
-          'http://13.203.67.154:3000/api/healthcare/healthcare-profile/${widget.healthcareId}');
+          '${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/${widget.healthcareId}');
+
       final response = await http.get(url).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -71,7 +74,8 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
 
     try {
       final url = Uri.parse(
-          'http://13.203.67.154:3000/api/healthcare/edit/${widget.healthcareId}');
+          '${AppConfig.apiBaseUrl}/healthcare/edit/${widget.healthcareId}');
+
       
       final response = await http.put(
         url,
@@ -153,8 +157,8 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
               height: 70,
               decoration: BoxDecoration(
                 color: isCurrentlyVerified 
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.orange.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.orange.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -179,8 +183,8 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: isCurrentlyVerified 
-                    ? Colors.green.withOpacity(0.1)
-                    : Colors.orange.withOpacity(0.1),
+                    ? Colors.green.withValues(alpha: 0.1)
+                    : Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -280,7 +284,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -297,7 +301,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: _isUpdatingKYC
@@ -321,7 +325,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -388,12 +392,12 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                 shape: BoxShape.circle,
                 color: Colors.white,
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   width: 3,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
@@ -436,7 +440,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                 category,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -448,14 +452,14 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: isKYCVerified 
-                      ? Colors.white.withOpacity(0.25)
-                      : Colors.orange.withOpacity(0.3),
+                  color: isKYCVerified
+                      ? Colors.white.withValues(alpha: 0.25)
+                      : Colors.orange.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
                     color: isKYCVerified 
-                        ? Colors.white.withOpacity(0.5)
-                        : Colors.orange.withOpacity(0.5),
+                        ? Colors.white.withValues(alpha: 0.5)
+                        : Colors.orange.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Row(
@@ -471,15 +475,15 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                       isKYCVerified ? 'KYC Verified' : 'Pending Verification',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.white.withOpacity(0.95),
+                        color: Colors.white.withValues(alpha: 0.95),
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Icon(
                       Icons.edit,
-                      color: Colors.white.withOpacity(0.8),
-                      size: 12,
+                      size: 16,
+                      color: Colors.white.withValues(alpha: 0.8),
                     ),
                   ],
                 ),
@@ -586,10 +590,10 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1976D2).withOpacity(0.1),
+                        color: const Color(0xFF1976D2).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: const Color(0xFF1976D2).withOpacity(0.2),
+                          color: const Color(0xFF1E3A5F).withValues(alpha: 0.3),
                         ),
                       ),
                       child: Text(
@@ -685,7 +689,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
     required Color iconColor,
     required List<Widget> children,
   }) {
-    final filteredChildren = children.where((w) => w is! SizedBox || (w as SizedBox).height != 0).toList();
+    final filteredChildren = children.where((w) => w is! SizedBox || w.height != 0).toList();
 
     if (filteredChildren.isEmpty) {
       return const SizedBox.shrink();
@@ -699,7 +703,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -713,7 +717,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -762,7 +766,7 @@ class _HealthcareProfileScreenState extends State<HealthcareProfileScreen> {
                   label,
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade500,
+                    color: const Color(0xFF1E3A5F).withValues(alpha: 0.1),
                     fontWeight: FontWeight.w500,
                   ),
                 ),

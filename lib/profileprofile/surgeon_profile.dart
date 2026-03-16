@@ -7,12 +7,14 @@ import 'package:doc/model/doctor_profile_data.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/screens/signin_screen.dart';
-import 'package:doc/homescreen/SearchjobScreen.dart';
-import 'package:doc/homescreen/Applied_Jobs.dart';
+import 'package:doc/homescreen/search_job_screen.dart';
+import 'package:doc/homescreen/applied_jobs.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doc/utils/subscription_guard.dart';
+import 'package:doc/utils/app_config.dart';
+
 
 class ProfessionalProfileViewPage extends StatefulWidget {
   final String profileId;
@@ -28,7 +30,6 @@ class _ProfessionalProfileViewPageState
   bool _isLoading = true;
   bool _isDeleting = false;
   DoctorProfileData? _profile;
-  String? _error;
 
   @override
   void initState() {
@@ -67,7 +68,6 @@ class _ProfessionalProfileViewPageState
             portfolio: '',
             profilePicture: '',
           );
-          _error = null;
           _isLoading = false;
         });
       }
@@ -94,7 +94,6 @@ class _ProfessionalProfileViewPageState
           portfolio: '',
           profilePicture: '',
         );
-        _error = null;
         _isLoading = false;
       });
     }
@@ -278,15 +277,12 @@ class _ProfessionalProfileViewPageState
 
     try {
       final uri = Uri.parse(
-        'http://13.203.67.154:3000/api/account/delete/${widget.profileId}?profile_id=${widget.profileId}',
+        '${AppConfig.apiBaseUrl}/account/delete/${widget.profileId}?profile_id=${widget.profileId}',
       );
-      
-      debugPrint('🗑️ Deleting surgeon account: $uri');
+
       
       final response = await http.delete(uri);
       
-      debugPrint('🗑️ Delete response: ${response.statusCode}');
-      debugPrint('🗑️ Delete body: ${response.body}');
 
       if (!mounted) return;
 
@@ -324,7 +320,6 @@ class _ProfessionalProfileViewPageState
         );
       }
     } catch (e) {
-      debugPrint('🗑️ Delete error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -403,10 +398,7 @@ class _ProfessionalProfileViewPageState
               child: Container(
                 width: 120,
                 height: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.blueAccent.withOpacity(0.1),
-                ),
+                  color: Colors.blueAccent.withValues(alpha: 0.1),
                 child: ClipOval(
                   child: _profile!.profilePicture.isNotEmpty
                       ? Image.network(
@@ -769,7 +761,7 @@ class _ProfessionalProfileViewPageState
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.blueAccent.withOpacity(0.1),
+            color: Colors.blueAccent.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: Colors.blueAccent, size: 24),
@@ -804,12 +796,14 @@ class _ProfessionalProfileViewPageState
     if (!url.startsWith('http')) {
       // Assuming files are served from the root. 
       // If your server uses a specific path for uploads (e.g. /uploads/), add it here.
-      // Example: http://13.203.67.154:3000/uploads/$url
-      fullUrl = 'http://13.203.67.154:3000/$url'; 
+      // Example: ${AppConfig.serverUrl}/uploads/$url
+
+      fullUrl = '${AppConfig.serverUrl}/$url'; 
+
     }
 
     final uri = Uri.parse(fullUrl);
-    print("Launching Document URL: $uri"); 
+    debugPrint("Launching Document URL: $uri"); 
 
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);

@@ -1,12 +1,14 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/utils/session_manager.dart';
+import 'package:doc/utils/app_config.dart';
+
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
-import 'package:doc/widgets/skeleton_loader.dart';
-import 'package:shimmer/shimmer.dart';
-import 'package:doc/Navbar.dart';
+import 'package:doc/navbar.dart';
 import 'package:doc/model/indian_states_districts.dart';
 
 class Applicants extends StatefulWidget {
@@ -24,11 +26,33 @@ class _ApplicantsState extends State<Applicants> {
   final TextEditingController responsibilitiesCtrl = TextEditingController();
   final TextEditingController qualificationCtrl = TextEditingController();
   final TextEditingController experienceCtrl = TextEditingController();
+  
+  // ✅ Image Picker for Job Post
+  File? _jobImage;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _jobImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking image: $e");
+    }
+  }
 
   // Hospital Profile Logic
   String _hospitalName = '';
   String? _hospitalLogoUrl;
-  bool _isProfileLoading = true;
   bool _isKYCVerified = true; // Default to true to avoid showing banner incorrectly
 
   // State and District for job location
@@ -66,7 +90,8 @@ class _ApplicantsState extends State<Applicants> {
       }
 
       if (id != null && id.isNotEmpty) {
-        final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$id');
+        final uri = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$id');
+
         final response = await http.get(uri);
         if (response.statusCode == 200) {
           final body = jsonDecode(response.body);
@@ -80,17 +105,15 @@ class _ApplicantsState extends State<Applicants> {
                  if (name != null) _hospitalName = name.toString();
                  if (logo != null) _hospitalLogoUrl = logo.toString();
                  _isKYCVerified = kycVerified == true;
-                 _isProfileLoading = false;
                });
              }
           }
         }
       } else {
-        if (mounted) setState(() => _isProfileLoading = false);
+        // Handle case where ID is null
       }
     } catch (e) {
       debugPrint('Error fetching hospital name: $e');
-      if (mounted) setState(() => _isProfileLoading = false);
     }
   }
 
@@ -142,25 +165,25 @@ class _ApplicantsState extends State<Applicants> {
       final storedProfileId = await SessionManager.getProfileId();
       final storedUserId = await SessionManager.getUserId();
       
-      print('🩺 Stored healthcare_id: $storedHealthcareId');
-      print('🩺 Stored profile_id: $storedProfileId');
-      print('🩺 Stored user_id: $storedUserId');
-      print('🩺 Widget healthcare_id: ${widget.healthcareId}');
+      debugPrint('🩺 Stored healthcare_id: $storedHealthcareId');
+      debugPrint('🩺 Stored profile_id: $storedProfileId');
+      debugPrint('🩺 Stored user_id: $storedUserId');
+      debugPrint('🩺 Widget healthcare_id: ${widget.healthcareId}');
 
       // Priority: widget.healthcareId > storedHealthcareId > storedProfileId > storedUserId
       String? healthcareId;
       if (widget.healthcareId != null && widget.healthcareId!.isNotEmpty) {
         healthcareId = widget.healthcareId!;
-        print('🩺 Using healthcare_id from widget: $healthcareId');
+        debugPrint('🩺 Using healthcare_id from widget: $healthcareId');
       } else if (storedHealthcareId != null && storedHealthcareId.isNotEmpty) {
         healthcareId = storedHealthcareId;
-        print('🩺 Using healthcare_id from session: $healthcareId');
+        debugPrint('🩺 Using healthcare_id from session: $healthcareId');
       } else if (storedProfileId != null && storedProfileId.isNotEmpty) {
         healthcareId = storedProfileId;
-        print('🩺 Using profile_id as healthcare_id: $healthcareId');
+        debugPrint('🩺 Using profile_id as healthcare_id: $healthcareId');
       } else if (storedUserId != null && storedUserId.isNotEmpty) {
         healthcareId = storedUserId;
-        print('🩺 Using user_id as healthcare_id: $healthcareId');
+        debugPrint('🩺 Using user_id as healthcare_id: $healthcareId');
       }
 
       if (healthcareId == null || healthcareId.isEmpty) {
@@ -184,33 +207,34 @@ class _ApplicantsState extends State<Applicants> {
       String finalHealthcareId = healthcareId;
       bool idVerified = false;
 
-      print('🩺 🛡️ Verifying healthcare_id: $finalHealthcareId');
+      debugPrint('🩺 🛡️ Verifying healthcare_id: $finalHealthcareId');
       
       try {
         // 1. Check if current ID works
-        final checkUri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$finalHealthcareId');
+        final checkUri = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$finalHealthcareId');
         final checkResp = await http.get(checkUri).timeout(const Duration(seconds: 5));
         
         if (checkResp.statusCode == 200) {
           final body = jsonDecode(checkResp.body);
           final data = (body is Map && body['data'] != null) ? body['data'] : body;
           if (data is Map && (data['hospitalName'] != null || data['email'] != null)) {
-            print('🩺 🛡️ ID $finalHealthcareId is VALID');
+            debugPrint('🩺 🛡️ ID $finalHealthcareId is VALID');
             idVerified = true;
           }
         }
       } catch (e) {
-        print('🩺 🛡️ ID check failed: $e');
+        debugPrint('🩺 🛡️ ID check failed: $e');
       }
 
       // 2. If ID is invalid, try to recover via Email
       if (!idVerified) {
-        print('🩺 ⚠️ ID $finalHealthcareId seems invalid. Attempting recovery via email...');
+        debugPrint('🩺 ⚠️ ID $finalHealthcareId seems invalid. Attempting recovery via email...');
         final userEmail = await SessionManager.getUserEmail();
         
         if (userEmail != null && userEmail.isNotEmpty) {
           try {
-            final emailUri = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/email/$userEmail');
+            final emailUri = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/email/$userEmail');
+
             final emailResp = await http.get(emailUri).timeout(const Duration(seconds: 5));
             
             if (emailResp.statusCode == 200) {
@@ -221,7 +245,7 @@ class _ApplicantsState extends State<Applicants> {
                 // PRIORITY: healthcare_id first (that's what edit API uses)
                 final recoveredId = data['healthcare_id'] ?? data['healthcareId'] ?? data['_id'];
                 if (recoveredId != null) {
-                  print('🩺 ✅ Recovered valid healthcare_id via email: $recoveredId');
+                  debugPrint('🩺 ✅ Recovered valid healthcare_id via email: $recoveredId');
                   finalHealthcareId = recoveredId.toString();
                   await SessionManager.saveHealthcareId(finalHealthcareId);
                   idVerified = true;
@@ -229,19 +253,19 @@ class _ApplicantsState extends State<Applicants> {
               }
             }
           } catch (e) {
-            print('🩺 ❌ Email recovery failed: $e');
+            debugPrint('🩺 ❌ Email recovery failed: $e');
           }
         } else {
-          print('🩺 ⚠️ No user email found for recovery');
+          debugPrint('🩺 ⚠️ No user email found for recovery');
         }
       }
 
       if (!idVerified) {
-        print('🩺 ⚠️ Proceeding with unverified ID: $finalHealthcareId (Risk of failure)');
+        debugPrint('🩺 ⚠️ Proceeding with unverified ID: $finalHealthcareId (Risk of failure)');
       }
       // ---------------------------------------------------------
 
-      final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/jobpost');
+      final uri = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/jobpost');
 
       final Map<String, String> payload = {
         'jobTitle': jobTitleCtrl.text.trim(),
@@ -261,23 +285,34 @@ class _ApplicantsState extends State<Applicants> {
         'status': 'Active', // Default status for new jobs
       };
 
-      print('🩺 Final healthcare_id being sent: $healthcareId');
-      print('🩺 Job post payload: ${jsonEncode(payload)}');
-
+      debugPrint('🩺 Final healthcare_id being sent: $healthcareId');
+      
       // Get auth token
       final token = await SessionManager.getToken();
-      final headers = <String, String>{
-        'Content-Type': 'application/x-www-form-urlencoded',
-      };
+      
+      // ✅ Use MultipartRequest for job image
+      var request = http.MultipartRequest('POST', uri);
+      
       if (token != null && token.isNotEmpty) {
-        headers['Authorization'] = 'Bearer $token';
-        print('🩺 Using auth token');
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      
+      request.fields.addAll(payload);
+
+      if (_jobImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'jobImage', // Field name for backend
+            _jobImage!.path,
+          ),
+        );
       }
 
-      final resp = await http.post(uri, headers: headers, body: payload);
+      final streamedResponse = await request.send();
+      final resp = await http.Response.fromStream(streamedResponse);
 
-      print('🩺 Response status: ${resp.statusCode}');
-      print('🩺 Response body: ${resp.body}');
+      debugPrint('🩺 Response status: ${resp.statusCode}');
+      debugPrint('🩺 Response body: ${resp.body}');
 
       if (!mounted) return;
 
@@ -321,7 +356,7 @@ class _ApplicantsState extends State<Applicants> {
           errorMsg = 'Failed to post job (${resp.statusCode})';
         }
 
-        print('🩺 Error: $errorMsg');
+        debugPrint('🩺 Error: $errorMsg');
 
         // Check if it's a healthcare_id issue
         if (errorMsg.toLowerCase().contains('healthcare') || 
@@ -331,12 +366,13 @@ class _ApplicantsState extends State<Applicants> {
           // Try to fetch the profile to see what's wrong
           try {
             final profileUri = Uri.parse(
-              'http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId',
+              '${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$healthcareId',
             );
+
             final profileResp = await http.get(profileUri).timeout(const Duration(seconds: 5));
             
-            print('🩺 Profile check status: ${profileResp.statusCode}');
-            print('🩺 Profile check body: ${profileResp.body}');
+            debugPrint('🩺 Profile check status: ${profileResp.statusCode}');
+            debugPrint('🩺 Profile check body: ${profileResp.body}');
             
             if (profileResp.statusCode != 200) {
               errorMsg = 'Hospital profile not found. Please complete your hospital profile first.';
@@ -353,8 +389,8 @@ class _ApplicantsState extends State<Applicants> {
                                              data['healthcareId']?.toString() ?? 
                                              data['_id']?.toString() ?? '';
                   
-                  print('🩺 Backend healthcare_id: $backendHealthcareId');
-                  print('🩺 Sent healthcare_id: $healthcareId');
+                  debugPrint('🩺 Backend healthcare_id: $backendHealthcareId');
+                  debugPrint('🩺 Sent healthcare_id: $healthcareId');
                   
                   if (backendHealthcareId.isNotEmpty && backendHealthcareId != healthcareId) {
                     // ID mismatch! Save the correct one and retry
@@ -363,14 +399,15 @@ class _ApplicantsState extends State<Applicants> {
                   }
                 }
               } catch (e) {
-                print('🩺 Error parsing profile: $e');
+                debugPrint('🩺 Error parsing profile: $e');
               }
             }
           } catch (e) {
-            print('🩺 Error checking profile: $e');
+            debugPrint('🩺 Error checking profile: $e');
           }
         }
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMsg),
@@ -380,7 +417,7 @@ class _ApplicantsState extends State<Applicants> {
         );
       }
     } catch (e) {
-      print('🩺 Exception: $e');
+      debugPrint('🩺 Exception: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -417,6 +454,38 @@ class _ApplicantsState extends State<Applicants> {
 
 
             const Text("Find the right surgeon for your team.\n"),
+
+            // ✅ Job Poster Picker
+            _label("Job Poster / Thumbnail (Optional)"),
+            Center(
+              child: GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey[300]!),
+                  ),
+                  child: _jobImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: Image.file(_jobImage!, fit: BoxFit.cover),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_photo_alternate_outlined,
+                                size: 50, color: Colors.grey[400]),
+                            const SizedBox(height: 8),
+                            Text("Click to select an image",
+                                style: TextStyle(color: Colors.grey[600])),
+                          ],
+                        ),
+                ),
+              ),
+            ),
 
             _label("Job Title"),
             _input(jobTitleCtrl, "e.g., Consultant Orthopedic Surgeon"),

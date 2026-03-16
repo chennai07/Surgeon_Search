@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:doc/hospital/Myjobsscreen.dart' as myjobs_screen;
-import 'package:doc/hospital/myJobsPage.dart' as postjob_screen;
-import 'package:doc/hospital/ManageJobListings.dart';
+import 'package:doc/hospital/my_jobs_screen.dart' as myjobs_screen;
+import 'package:doc/hospital/my_jobs_page.dart' as postjob_screen;
+import 'package:doc/hospital/manage_job_listings.dart';
 import 'package:doc/healthcare/hospital_profile.dart';
 import 'package:doc/hospital/scheduled_interviews.dart';
 
@@ -30,8 +30,8 @@ class _NavbarState extends State<Navbar> {
             '')
         .toString();
     
-    print('🏥 Navbar: healthcareId = $healthcareId');
-    print('🏥 Navbar: hospitalData = ${widget.hospitalData}');
+    debugPrint('🏥 Navbar: healthcareId = $healthcareId');
+    debugPrint('🏥 Navbar: hospitalData = ${widget.hospitalData}');
     
     pages = [
       myjobs_screen.MyJobsPage(

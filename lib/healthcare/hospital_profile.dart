@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'package:logger/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/healthcare/hospial_form.dart';
@@ -22,10 +25,10 @@ class HospitalProfile extends StatefulWidget {
 }
 
 class _HospitalProfileState extends State<HospitalProfile> {
+  final _logger = Logger();
   Map<String, dynamic> _profileData = {};
   bool _isLoadingProfile = true;
   bool _isDeleting = false;
-  String? _profileError;
 
   List<Map<String, dynamic>> _jobs = [];
   bool _isLoadingJobs = true;
@@ -46,7 +49,6 @@ class _HospitalProfileState extends State<HospitalProfile> {
 
     if (healthcareId.isEmpty) {
       setState(() {
-        _profileError = 'Healthcare ID missing';
         _isLoadingProfile = false;
       });
       return;
@@ -54,11 +56,12 @@ class _HospitalProfileState extends State<HospitalProfile> {
 
     try {
       final uri = Uri.parse(
-          'http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId');
-      print('🏥 Fetching profile from: $uri');
+          '${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$healthcareId');
+
+      _logger.i('🏥 Fetching profile from: $uri');
       
       final response = await http.get(uri);
-      print('🏥 Profile API response: ${response.statusCode}');
+      _logger.i('🏥 Profile API response: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
@@ -74,11 +77,11 @@ class _HospitalProfileState extends State<HospitalProfile> {
           }
         }
       } else {
-        print('🏥 Failed to fetch profile: ${response.statusCode}');
+        _logger.w('🏥 Failed to fetch profile: ${response.statusCode}');
         if (mounted) setState(() => _isLoadingProfile = false);
       }
     } catch (e) {
-      print('🏥 Error fetching profile: $e');
+      _logger.e('🏥 Error fetching profile: $e');
       if (mounted) setState(() => _isLoadingProfile = false);
     }
   }
@@ -95,7 +98,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
           widget.data['_id']?.toString() ??
           '';
 
-      print('🏥 Fetching jobs for healthcare_id: $healthcareId');
+      _logger.i('🏥 Fetching jobs for healthcare_id: $healthcareId');
 
       if (healthcareId.isEmpty) {
         setState(() {
@@ -107,10 +110,11 @@ class _HospitalProfileState extends State<HospitalProfile> {
 
       // Use the same API endpoint as MyJobsPage
       final uri = Uri.parse(
-          'http://13.203.67.154:3000/api/healthcare/joblist-healthcare/$healthcareId');
+          '${AppConfig.apiBaseUrl}/healthcare/joblist-healthcare/$healthcareId');
+
       final response = await http.get(uri);
 
-      print('🏥 Jobs API response status: ${response.statusCode}');
+      _logger.i('🏥 Jobs API response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final body = response.body.trimLeft();
@@ -131,11 +135,11 @@ class _HospitalProfileState extends State<HospitalProfile> {
         final jobs = <Map<String, dynamic>>[];
         for (final item in list) {
           if (item is Map) {
-            jobs.add(Map<String, dynamic>.from(item as Map));
+            jobs.add(Map<String, dynamic>.from(item));
           }
         }
 
-        print('🏥 ✅ Fetched ${jobs.length} jobs');
+        _logger.i('🏥 ✅ Fetched ${jobs.length} jobs');
 
         if (!mounted) return;
         setState(() {
@@ -144,7 +148,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
         });
       } else if (response.statusCode == 404) {
         // No jobs found - not an error, just empty list
-        print('🏥 No jobs found for this hospital');
+        _logger.i('🏥 No jobs found for this hospital');
         if (!mounted) return;
         setState(() {
           _jobs = [];
@@ -152,7 +156,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
           _isLoadingJobs = false;
         });
       } else {
-        print('🏥 ❌ Failed to fetch jobs: ${response.statusCode}');
+        _logger.w('🏥 ❌ Failed to fetch jobs: ${response.statusCode}');
         if (!mounted) return;
         setState(() {
           _jobsError = 'Failed to load jobs';
@@ -160,7 +164,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
         });
       }
     } catch (e) {
-      print('🏥 ❌ Error fetching jobs: $e');
+      _logger.e('🏥 ❌ Error fetching jobs: $e');
       if (!mounted) return;
       setState(() {
         _jobsError = 'Error loading jobs';
@@ -277,6 +281,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
     );
 
     if (confirmed == true) {
+      if (!mounted) return;
       await _deleteAccount();
     }
   }
@@ -300,15 +305,16 @@ class _HospitalProfileState extends State<HospitalProfile> {
 
     try {
       final uri = Uri.parse(
-        'http://13.203.67.154:3000/api/account/delete/$healthcareId?healthcare_id=$healthcareId',
+        '${AppConfig.apiBaseUrl}/account/delete/$healthcareId?healthcare_id=$healthcareId',
+
       );
       
-      print('🗑️ Deleting hospital account: $uri');
+      _logger.i('🗑️ Deleting hospital account: $uri');
       
       final response = await http.delete(uri);
       
-      print('🗑️ Delete response: ${response.statusCode}');
-      print('🗑️ Delete body: ${response.body}');
+      _logger.i('🗑️ Delete response: ${response.statusCode}');
+      _logger.d('🗑️ Delete body: ${response.body}');
 
       if (!mounted) return;
 
@@ -346,7 +352,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
         );
       }
     } catch (e) {
-      print('🗑️ Delete error: $e');
+      _logger.e('🗑️ Delete error: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -403,9 +409,10 @@ class _HospitalProfileState extends State<HospitalProfile> {
           ),
           TextButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
               await SessionManager.clearAll();
-              Navigator.pushAndRemoveUntil(
-                context,
+              if (!mounted) return;
+              navigator.pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),
                 (route) => false,
               );
@@ -441,7 +448,8 @@ class _HospitalProfileState extends State<HospitalProfile> {
                       var logoUrl = (_profileData['hospitalLogo'] ?? '').toString();
                       // Add base URL if logo is a relative path
                       if (logoUrl.isNotEmpty && !logoUrl.startsWith('http')) {
-                        logoUrl = 'http://13.203.67.154:3000/$logoUrl';
+                        logoUrl = '${AppConfig.serverUrl}/$logoUrl';
+
                       }
                       
                       return logoUrl.isNotEmpty
@@ -537,8 +545,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
               runSpacing: 8,
               children: [
                 ...List<String>.from((_profileData['departmentsAvailable'] ?? const []))
-                    .map((d) => _departmentChip(d))
-                    .toList(),
+                    .map((d) => _departmentChip(d)),
               ],
             ),
 
@@ -748,7 +755,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             blurRadius: 10,
             spreadRadius: 2,
           ),

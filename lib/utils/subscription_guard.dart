@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:doc/utils/session_manager.dart';
-import 'package:doc/Subscription Plan Screen/freetrial _endedscreen.dart';
+import 'package:doc/subscription_plan_screen/freetrial_ended_screen.dart';
 
 /// 🛡️ Subscription Guard
 /// Controls access to premium features based on subscription status

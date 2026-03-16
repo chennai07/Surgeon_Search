@@ -1,6 +1,7 @@
 // 🧩 LOGIN API
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,7 +10,7 @@ Future<Map<String, dynamic>> loginUser({
   required String password,
 }) async {
   try {
-    var baseUrl;
+    dynamic baseUrl;
     final uri = Uri.parse('$baseUrl/login');
     final response = await http.post(
       uri,
@@ -17,7 +18,7 @@ Future<Map<String, dynamic>> loginUser({
       body: jsonEncode({'email': email, 'password': password}),
     );
 
-    print('📩 Login Response (${response.statusCode}): ${response.body}');
+    debugPrint('📩 Login Response (${response.statusCode}): ${response.body}');
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = jsonDecode(response.body);
@@ -36,7 +37,7 @@ Future<Map<String, dynamic>> loginUser({
         await prefs.setString('token', token);
         await prefs.setInt('token_expiry', expiryTime);
 
-        print('🔐 Token saved, expires in ${expiresIn ~/ 60} minutes.');
+        debugPrint('🔐 Token saved, expires in ${expiresIn ~/ 60} minutes.');
 
         return {'success': true, 'data': data};
       } else {
@@ -50,7 +51,7 @@ Future<Map<String, dynamic>> loginUser({
       };
     }
   } catch (e) {
-    print('🚨 Login error: $e');
+    debugPrint('🚨 Login error: $e');
     return {'success': false, 'message': e.toString()};
   }
 }

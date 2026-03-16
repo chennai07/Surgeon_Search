@@ -1,0 +1,669 @@
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:doc/utils/session_manager.dart';
+import 'package:doc/utils/app_config.dart';
+
+import 'package:doc/hospital/applicantcard.dart';
+import 'package:doc/hospital/job_details_screen.dart';
+import 'package:doc/widgets/skeleton_loader.dart';
+import 'package:shimmer/shimmer.dart';
+
+class MyJobsPage extends StatefulWidget {
+  final VoidCallback? onHospitalNameTap;
+  final String? healthcareId;
+  final Map<String, dynamic>? hospitalData;
+
+  const MyJobsPage({super.key, this.onHospitalNameTap, this.healthcareId, this.hospitalData});
+
+  @override
+  State<MyJobsPage> createState() => _MyJobsPageState();
+}
+
+class _MyJobsPageState extends State<MyJobsPage> {
+  int bottomIndex = 0;
+  int tabIndex = 0; // 0 = Active, 1 = Closed
+
+  List<Map<String, dynamic>> _jobs = [];
+  bool _isLoading = true;
+  String? _error;
+
+  // Added for filtering and ID tracking
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  String _hospitalName = ''; // Added
+  String? _hospitalLogoUrl; // Added for logo
+  bool _isHeaderLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Use passed data immediately if available
+    if (widget.hospitalData != null) {
+      _hospitalName = widget.hospitalData!['hospitalName']?.toString() ?? '';
+      var logo = widget.hospitalData!['hospitalLogo']?.toString() ?? '';
+      // Add base URL if logo is a relative path
+      if (logo.isNotEmpty && !logo.startsWith('http')) {
+        logo = '${AppConfig.serverUrl}/$logo';
+
+      }
+      _hospitalLogoUrl = logo.isNotEmpty ? logo : null;
+      _isHeaderLoading = false; // No need to show loading if we have data
+// Removed debug print
+    }
+    // Then fetch fresh data from API
+    _fetchHospitalName();
+    _fetchJobs();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchHospitalName() async {
+    try {
+      String? id = widget.healthcareId;
+// Removed debug print
+      
+      if (id == null || id.isEmpty) {
+        id = await SessionManager.getHealthcareId();
+// Removed debug print
+      }
+      if (id == null || id.isEmpty) {
+        id = await SessionManager.getProfileId();
+// Removed debug print
+      }
+
+      if (id != null && id.isNotEmpty) {
+        final uri = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$id');
+
+// Removed debug print
+        
+        final response = await http.get(uri);
+// Removed debug print
+        
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body);
+          final data = body is Map && body['data'] != null ? body['data'] : body;
+          if (data is Map) {
+             final name = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
+             var logo = data['hospitalLogo']?.toString() ?? '';
+             
+             // Add base URL if logo is a relative path
+             if (logo.isNotEmpty && !logo.startsWith('http')) {
+               logo = '${AppConfig.serverUrl}/$logo';
+
+             }
+             
+// Removed debug print
+             if (mounted) {
+               setState(() {
+                 if (name != null) _hospitalName = name.toString();
+                 if (logo.isNotEmpty) _hospitalLogoUrl = logo;
+                 _isHeaderLoading = false;
+               });
+             }
+          }
+        } else {
+// Removed debug print
+          if (mounted) setState(() => _isHeaderLoading = false);
+        }
+      } else {
+// Removed debug print
+        if (mounted) setState(() => _isHeaderLoading = false);
+      }
+    } catch (e) {
+// Removed debug print
+      if (mounted) setState(() => _isHeaderLoading = false);
+    }
+  }
+
+  Future<void> _fetchJobs() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final fromWidgetId = widget.healthcareId;
+      final storedHealthcareId = await SessionManager.getHealthcareId();
+      final storedProfileId = await SessionManager.getProfileId();
+      
+      // Build list of candidate IDs to try (profile_id first, then healthcare_id)
+      final candidateIds = <String>[];
+      if (storedProfileId != null && storedProfileId.isNotEmpty) {
+        candidateIds.add(storedProfileId);
+      }
+      if (storedHealthcareId != null && storedHealthcareId.isNotEmpty && storedHealthcareId != storedProfileId) {
+        candidateIds.add(storedHealthcareId);
+      }
+      if (fromWidgetId != null && fromWidgetId.isNotEmpty && !candidateIds.contains(fromWidgetId)) {
+        candidateIds.add(fromWidgetId);
+      }
+
+      if (candidateIds.isEmpty) {
+        if (!mounted) return;
+        setState(() {
+          _error = 'Healthcare id not found';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Try each candidate ID until we find one that works
+      String? workingId;
+      List<Map<String, dynamic>> jobs = [];
+      
+      for (final candidateId in candidateIds) {
+        final uri = Uri.parse(
+            '${AppConfig.apiBaseUrl}/healthcare/joblist-healthcare/$candidateId');
+
+        final response = await http.get(uri);
+
+        if (response.statusCode == 200) {
+          final body = response.body.trimLeft();
+          
+          dynamic decoded;
+          try {
+            decoded = jsonDecode(body);
+          } catch (_) {
+            decoded = {};
+          }
+
+          final data = decoded is Map && decoded['data'] != null
+              ? decoded['data']
+              : decoded;
+          
+          final list = data is List
+              ? data
+              : (data is Map && data['jobs'] is List ? data['jobs'] : <dynamic>[]);
+
+          for (final item in list) {
+            if (item is Map) {
+              jobs.add(Map<String, dynamic>.from(item));
+            }
+          }
+
+          workingId = candidateId;
+          break; // Found working ID, stop trying others
+        }
+      }
+
+      // Fetch hospital profile to get hospital name using the working ID
+      if (workingId != null) {
+        try {
+          final profileUri = Uri.parse(
+              '${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$workingId');
+
+          final profileRes = await http.get(profileUri);
+          if (profileRes.statusCode == 200) {
+            final body = jsonDecode(profileRes.body);
+            final data =
+                body is Map && body['data'] != null ? body['data'] : body;
+            if (data is Map) {
+              // Extract hospital name
+              final name = data['hospitalName'] ?? data['name'] ?? data['organizationName'];
+              final logo = data['hospitalLogo'];
+              if (name != null) {
+                _hospitalName = name.toString();
+              }
+              if (logo != null) {
+                _hospitalLogoUrl = logo.toString();
+              }
+              _isHeaderLoading = false;
+            }
+          }
+        } catch (e) {
+// Removed debug print
+        }
+      }
+
+
+      if (!mounted) return;
+      
+      setState(() {
+        _jobs = jobs;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Error loading jobs: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<Map<String, dynamic>> get _filteredJobs {
+    return _jobs.where((job) {
+      // 1. Filter by Tab (Active vs Closed)
+      final status = (job['status']?.toString() ?? 'Active').toLowerCase();
+      final isActiveTab = tabIndex == 0;
+      
+      // If tab is Active, show everything EXCEPT 'closed'
+      // If tab is Closed, show ONLY 'closed'
+      if (isActiveTab) {
+        if (status == 'closed') return false;
+      } else {
+        if (status != 'closed') return false;
+      }
+
+      // 2. Filter by Search Query
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        final title = (job['jobTitle']?.toString() ?? '').toLowerCase();
+        final dept = (job['department']?.toString() ?? '').toLowerCase();
+        final state = (job['state']?.toString() ?? '').toLowerCase();
+        final district = (job['district']?.toString() ?? '').toLowerCase();
+        
+        return title.contains(query) || dept.contains(query) || state.contains(query) || district.contains(query);
+      }
+
+      return true;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayJobs = _filteredJobs;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ---------- HEADER CARD ----------
+              if (_isHeaderLoading && _hospitalName.isEmpty)
+                const Padding(
+                   padding: EdgeInsets.only(bottom: 20),
+                   child: ProfileHeaderSkeleton(),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      // Hospital Logo
+                      ClipOval(
+                        child: Container(
+                          height: 40,
+                          width: 40,
+                          decoration: const BoxDecoration(shape: BoxShape.circle),
+                          child: (_hospitalLogoUrl != null && _hospitalLogoUrl!.isNotEmpty)
+                              ? Image.network(
+                                  _hospitalLogoUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Shimmer.fromColors(
+                                      baseColor: Colors.grey[300]!,
+                                      highlightColor: Colors.grey[100]!,
+                                      child: Container(color: Colors.white),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Image.asset(
+                                      "assets/logo2.png",
+                                      fit: BoxFit.cover,
+                                    );
+                                  },
+                                )
+                              : Image.asset(
+                                  "assets/logo2.png",
+                                  fit: BoxFit.cover,
+                                ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Hospital Name (tappable to go to profile)
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: widget.onHospitalNameTap,
+                          child: Text(
+                            _hospitalName.isNotEmpty ? _hospitalName : "Hospital",
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Notification Icon
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue, width: 1.2),
+                        ),
+                        child: const Icon(
+                          Icons.notifications_none,
+                          color: Colors.blue,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 20),
+
+              // ---------- SEARCH BAR ----------
+              TextField(
+                controller: _searchController,
+                onChanged: (val) {
+                  setState(() {
+                    _searchQuery = val;
+                  });
+                },
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  hintText: "Search",
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Colors.blueAccent),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(
+                      color: Colors.blue,
+                      width: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // ---------- FILTER + ACTIVE/CLOSED ----------
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.blue),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.filter_alt, color: Colors.blue),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => tabIndex = 0),
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: tabIndex == 0
+                                    ? Colors.blue
+                                    : const Color(0xffe8f1ff),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                "Active",
+                                style: TextStyle(
+                                  color: tabIndex == 0
+                                      ? Colors.white
+                                      : Colors.blue,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => tabIndex = 1),
+                            child: Container(
+                              alignment: Alignment.center,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: tabIndex == 1
+                                    ? Colors.blue
+                                    : const Color(0xffe8f1ff),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                "Closed",
+                                style: TextStyle(
+                                  color: tabIndex == 1
+                                      ? Colors.white
+                                      : Colors.blue,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              Text(
+                "${displayJobs.length} Results",
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              if (_isLoading)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: SkeletonLoader(itemCount: 4, height: 180),
+                )
+              else if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.redAccent),
+                  ),
+                )
+              else if (displayJobs.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text(
+                    'No jobs found',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                )
+              else
+                Column(
+                  children: displayJobs.map(_buildJobCard).toList(),
+                ),
+            ],
+          ),
+        ),
+      ),
+
+      // ---------- BOTTOM NAVIGATION ----------
+    );
+  }
+
+  Future<void> _viewApplicantsForJob(Map<String, dynamic> job) async {
+    final rawId = job['_id'] ?? job['id'] ?? '';
+    final jobId = rawId.toString();
+    final jobTitle = (job['jobTitle'] ?? job['title'] ?? '').toString();
+    final jobStatus = (job['status'] ?? '').toString();
+    
+    if (jobId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Job id not found for this listing.')),
+      );
+      return;
+    }
+
+    try {
+      final uri = Uri.parse(
+        '${AppConfig.apiBaseUrl}/jobs/applied-jobs/specific-jobs/$jobId',
+      );
+
+      final response = await http.get(uri);
+
+      if (response.statusCode == 200) {
+        final body = response.body.trimLeft();
+        dynamic decoded;
+        try {
+          decoded = jsonDecode(body);
+        } catch (_) {
+          decoded = [];
+        }
+
+        final data = decoded is Map && decoded['data'] != null
+            ? decoded['data']
+            : decoded;
+        final list = data is List
+            ? data
+            : (data is Map && data['applications'] is List
+                ? data['applications']
+                : <dynamic>[]);
+
+        final applicants = <Map<String, dynamic>>[];
+        for (final item in list) {
+          if (item is! Map) continue;
+          final m = item;
+          final rawApplicant =
+              m['applicant'] is Map ? m['applicant'] : m;
+          applicants.add(Map<String, dynamic>.from(rawApplicant));
+        }
+
+        if (!mounted) return;
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ApplicantsListPage(
+              jobId: jobId,
+              jobTitle: jobTitle,
+              applicants: applicants,
+              jobStatus: jobStatus,
+            ),
+          ),
+        );
+      } else if (response.statusCode == 404) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No applicants found for this job.')),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to load applicants (${response.statusCode})',
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading applicants: $e')),
+      );
+    }
+  }
+
+  Widget _buildJobCard(Map<String, dynamic> job) {
+    final title = job['jobTitle']?.toString() ?? '';
+    final department = job['department']?.toString() ?? '';
+    final subSpeciality = job['subSpeciality']?.toString() ?? '';
+    
+    // Build location from state and district
+    final jobState = job['state']?.toString() ?? '';
+    final jobDistrict = job['district']?.toString() ?? '';
+    String location;
+    if (jobDistrict.isNotEmpty && jobState.isNotEmpty) {
+      location = '$jobDistrict, $jobState';
+    } else if (jobState.isNotEmpty) {
+      location = jobState;
+    } else if (jobDistrict.isNotEmpty) {
+      location = jobDistrict;
+    } else {
+      location = job['location']?.toString() ?? ''; // Fallback for old jobs
+    }
+    
+    final qualifications = job['qualifications']?.toString() ?? '';
+    final aboutRole = job['aboutRole']?.toString() ?? '';
+    final status = job['status']?.toString() ?? 'Active';
+    final isKYCVerified = job['isKYCVerified'] ?? true; // Default to true if not present
+
+    Color tagColor;
+    switch (status.toLowerCase()) {
+      case 'closed':
+        tagColor = Colors.redAccent;
+        break;
+      case 'draft':
+        tagColor = Colors.orangeAccent;
+        break;
+      default:
+        tagColor = Colors.green;
+    }
+
+    return ApplicantCard(
+      name: title.isNotEmpty ? title : 'Job',
+      role: department.isNotEmpty ? department : subSpeciality,
+      location: location,
+      qualification: qualifications.isNotEmpty ? qualifications : subSpeciality,
+      currentRole: aboutRole,
+      tag: status,
+      tagColor: tagColor,
+      imagePath: 'assets/logo.png',
+      showImage: false,
+      isKYCVerified: isKYCVerified == true, // Ensure it's a boolean
+      onReviewTap: () async {
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => JobDetailScreen(
+              job: job,
+              onEdit: (updatedJob) {},
+              onClose: () {},
+              onDelete: () {},
+              onViewApplicants: () {
+                _viewApplicantsForJob(job);
+              },
+            ),
+          ),
+        );
+        if (result == true) {
+          _fetchJobs();
+        }
+      },
+      onViewProfileTap: () {},
+    );
+  }
+}

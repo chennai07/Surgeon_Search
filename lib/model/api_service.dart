@@ -1,13 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:doc/utils/app_config.dart';
+
 
 class ApiService {
   static const String baseUrl =
-      'http://13.203.67.154:3000/api/sugeon';
+      '${AppConfig.apiBaseUrl}/sugeon';
   static const String healthcareBase =
-      'http://13.203.67.154:3000/api/healthcare';
+      '${AppConfig.apiBaseUrl}/healthcare';
+
 
   static Future<Map<String, dynamic>> createProfile({
     required String fullName,
@@ -34,7 +38,7 @@ class ApiService {
   }) async {
     try {
       var uri = Uri.parse('$baseUrl/create-profile');
-      print('🔗 Creating profile at URL: $uri');
+      debugPrint('🔗 Creating profile at URL: $uri');
       var request = http.MultipartRequest('POST', uri);
 
       // ✅ Normal fields
@@ -115,7 +119,7 @@ class ApiService {
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
-      print('📩 API Response (${response.statusCode}): ${response.body}');
+      debugPrint('📩 API Response (${response.statusCode}): ${response.body}');
 
       final body = response.body;
       final ct = response.headers['content-type'] ?? '';
@@ -162,7 +166,7 @@ class ApiService {
       final url = Uri.parse('$baseUrl/profile-info/$profileId');
       final response = await http.get(url);
 
-      print('📩 Fetch Profile Info Response (${response.statusCode}): ${response.body}');
+      debugPrint('📩 Fetch Profile Info Response (${response.statusCode}): ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

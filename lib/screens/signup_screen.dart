@@ -1,10 +1,14 @@
 // ignore_for_file: unused_import
 
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/screens/otp_screen.dart';
+import 'package:doc/utils/app_config.dart';
+
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -23,6 +27,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  
+  // ✅ Image Picker State
+  File? _image;
+  final ImagePicker _picker = ImagePicker();
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1000,
+        maxHeight: 1000,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _image = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      debugPrint("Error picking image: $e");
+    }
+  }
 
   // ✅ Two roles only
   final List<String> roles = ["Healthcare Organizations", "Surgeon"];
@@ -40,34 +67,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => isLoading = true);
 
-    const String apiUrl = "http://13.203.67.154:3000/api/signup";
+    const String apiUrl = "${AppConfig.apiBaseUrl}/signup";
 
-    // ✅ Send all key variants for compatibility
-    final Map<String, dynamic> requestBody = {
-      "fullname": nameController.text.trim(),
-      "name": nameController.text.trim(),
-      "email": emailController.text.trim(),
-      "mobilenumber": phoneController.text.trim(),
-      "mobile": phoneController.text.trim(),
-      "password": passwordController.text.trim(),
-      "type": selectedRole,
-    };
-
+    // ✅ Use MultipartRequest if image is selected, otherwise normal POST
     try {
-      debugPrint("📤 Sending Signup Data: $requestBody");
+      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
 
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode(requestBody),
-      );
+      // Add fields
+      request.fields["fullname"] = nameController.text.trim();
+      request.fields["name"] = nameController.text.trim();
+      request.fields["email"] = emailController.text.trim();
+      request.fields["mobilenumber"] = phoneController.text.trim();
+      request.fields["mobile"] = phoneController.text.trim();
+      request.fields["password"] = passwordController.text.trim();
+      request.fields["type"] = selectedRole!;
 
-      debugPrint("📥 Response: ${response.statusCode}");
-      debugPrint("📄 Body: ${response.body}");
+      // Add image if selected
+      if (_image != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'profilePicture',
+            _image!.path,
+          ),
+        );
+      }
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -79,6 +110,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
         // ✅ Navigate to OTP screen
         Future.delayed(const Duration(seconds: 1), () {
+          if (!mounted) return;
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -99,11 +131,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
           errorMessage = "Unexpected response (${response.statusCode})";
         }
 
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Network Error: ${e.toString()}"),
@@ -153,6 +187,48 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 🔹 Profile Image Picker
+              Center(
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: Colors.grey[200],
+                      backgroundImage: _image != null ? FileImage(_image!) : null,
+                      child: _image == null
+                          ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: _pickImage,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Center(
+                child: Text(
+                  "Choose Profile Picture (Optional)",
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+              ),
+              const SizedBox(height: 25),
               // 🔹 Dropdown (Role Selector)
               Container(
                 width: double.infinity,
@@ -169,7 +245,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.blue.withOpacity(0.2),
+                      color: Colors.blue.withValues(alpha: 0.2),
                       blurRadius: 6,
                       offset: const Offset(0, 3),
                     ),

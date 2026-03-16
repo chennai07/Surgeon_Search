@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 import 'package:doc/screens/reset_password_screen.dart';
 
 class ForgotPasswordOtpScreen extends StatefulWidget {
@@ -65,7 +67,8 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
       isLoading = true;
     });
 
-    final url = Uri.parse('http://13.203.67.154:3000/api/password/forgot');
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/password/forgot');
+
 
     try {
       final response = await http.post(
@@ -129,7 +132,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
       isLoading = true;
     });
 
-    final url = Uri.parse('http://13.203.67.154:3000/api/password/otp-verify');
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/password/otp-verify');
 
     try {
       final response = await http.post(
@@ -371,7 +374,7 @@ class _ForgotPasswordOtpScreenState extends State<ForgotPasswordOtpScreen> {
             // Loading Overlay
             if (isLoading)
               Container(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 child: const Center(
                   child: CircularProgressIndicator(color: Colors.blueAccent),
                 ),

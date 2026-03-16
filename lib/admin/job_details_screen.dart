@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:doc/hospital/JobDetailsScreen.dart';
-import 'package:doc/admin/surgeon_profile_screen.dart';
+import 'package:doc/utils/app_config.dart';
+
+import 'surgeon_profile_screen.dart';
 
 /// AdminJobDetailsScreen displays detailed information about a job posting.
 class AdminJobDetailsScreen extends StatefulWidget {
@@ -38,7 +39,9 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
 
     try {
       final url = Uri.parse(
-          'http://13.203.67.154:3000/api/healthcare/job-profile/${widget.jobId}');
+        '${AppConfig.apiBaseUrl}/healthcare/job-profile/${widget.jobId}',
+
+      );
       final response = await http.get(url).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -71,7 +74,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
     final jobId = _jobData['_id'] ?? widget.jobId;
     final jobTitle = _jobData['jobTitle'] ?? 'Job';
     final jobStatus = _jobData['status'] ?? 'active';
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -83,7 +86,6 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -101,7 +103,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -117,7 +119,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -129,9 +131,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
               ),
               const SizedBox(width: 8),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildJobHeader(),
-            ),
+            flexibleSpace: FlexibleSpaceBar(background: _buildJobHeader()),
           ),
           // Content
           SliverToBoxAdapter(
@@ -145,8 +145,8 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
                     ),
                   )
                 : _errorMessage != null && _jobData.isEmpty
-                    ? _buildErrorState()
-                    : _buildJobDetails(),
+                ? _buildErrorState()
+                : _buildJobDetails(),
           ),
         ],
       ),
@@ -157,7 +157,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -171,10 +171,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
               icon: const Icon(Icons.people, size: 22),
               label: const Text(
                 'View Applicants',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1976D2),
@@ -203,11 +200,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1976D2),
-            Color(0xFF2196F3),
-            Color(0xFF42A5F5),
-          ],
+          colors: [Color(0xFF1976D2), Color(0xFF2196F3), Color(0xFF42A5F5)],
         ),
       ),
       child: SafeArea(
@@ -226,7 +219,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.15),
+                      color: Colors.black.withValues(alpha: 0.15),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -240,11 +233,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
                       : null,
                 ),
                 child: logo.isEmpty
-                    ? const Icon(
-                        Icons.work,
-                        color: Color(0xFF1976D2),
-                        size: 32,
-                      )
+                    ? const Icon(Icons.work, color: Color(0xFF1976D2), size: 32)
                     : null,
               ),
               const SizedBox(height: 14),
@@ -266,7 +255,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
                   hospital,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -302,7 +291,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
@@ -344,19 +333,12 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 60,
-              color: Colors.red.shade300,
-            ),
+            Icon(Icons.error_outline, size: 60, color: Colors.red.shade300),
             const SizedBox(height: 16),
             Text(
               _errorMessage ?? 'An error occurred',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade700,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -392,7 +374,6 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
     final salaryRange = _jobData['salaryRange'] ?? '';
     final interviewMode = _jobData['interviewMode'] ?? '';
     final deadline = _jobData['applicationDeadline'] ?? '';
-    final healthcareId = _jobData['healthcare_id'] ?? '';
     final createdAt = _jobData['createdAt'] ?? '';
 
     return Padding(
@@ -407,17 +388,37 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
             iconColor: const Color(0xFF1976D2),
             children: [
               if (department.isNotEmpty)
-                _buildInfoRow(Icons.medical_services_outlined, 'Department', department),
+                _buildInfoRow(
+                  Icons.medical_services_outlined,
+                  'Department',
+                  department,
+                ),
               if (subSpeciality.isNotEmpty)
-                _buildInfoRow(Icons.category_outlined, 'Sub-Speciality', subSpeciality),
+                _buildInfoRow(
+                  Icons.category_outlined,
+                  'Sub-Speciality',
+                  subSpeciality,
+                ),
               if (location.isNotEmpty)
                 _buildInfoRow(Icons.location_on_outlined, 'Location', location),
               if (minExperience != null)
-                _buildInfoRow(Icons.timeline, 'Min. Experience', '$minExperience years'),
+                _buildInfoRow(
+                  Icons.timeline,
+                  'Min. Experience',
+                  '$minExperience years',
+                ),
               if (salaryRange.isNotEmpty)
-                _buildInfoRow(Icons.payments_outlined, 'Salary Range', salaryRange),
+                _buildInfoRow(
+                  Icons.payments_outlined,
+                  'Salary Range',
+                  salaryRange,
+                ),
               if (interviewMode.isNotEmpty)
-                _buildInfoRow(Icons.video_camera_front_outlined, 'Interview Mode', interviewMode),
+                _buildInfoRow(
+                  Icons.video_camera_front_outlined,
+                  'Interview Mode',
+                  interviewMode,
+                ),
             ],
           ),
           const SizedBox(height: 16),
@@ -429,13 +430,13 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: _isDeadlinePassed(deadline)
-                    ? Colors.red.withOpacity(0.1)
-                    : Colors.orange.withOpacity(0.1),
+                    ? Colors.red.withValues(alpha: 0.1)
+                    : Colors.orange.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: _isDeadlinePassed(deadline)
-                      ? Colors.red.withOpacity(0.3)
-                      : Colors.orange.withOpacity(0.3),
+                      ? Colors.red.withValues(alpha: 0.3)
+                      : Colors.orange.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -444,13 +445,15 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: _isDeadlinePassed(deadline)
-                          ? Colors.red.withOpacity(0.15)
-                          : Colors.orange.withOpacity(0.15),
+                          ? Colors.red.withValues(alpha: 0.15)
+                          : Colors.orange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       Icons.calendar_today,
-                      color: _isDeadlinePassed(deadline) ? Colors.red : Colors.orange,
+                      color: _isDeadlinePassed(deadline)
+                          ? Colors.red
+                          : Colors.orange,
                       size: 22,
                     ),
                   ),
@@ -472,7 +475,9 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: _isDeadlinePassed(deadline) ? Colors.red : Colors.orange.shade800,
+                          color: _isDeadlinePassed(deadline)
+                              ? Colors.red
+                              : Colors.orange.shade800,
                         ),
                       ),
                     ],
@@ -570,7 +575,11 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
             iconColor: Colors.grey.shade600,
             children: [
               if (createdAt.isNotEmpty)
-                _buildInfoRow(Icons.calendar_today_outlined, 'Posted On', _formatDate(createdAt)),
+                _buildInfoRow(
+                  Icons.calendar_today_outlined,
+                  'Posted On',
+                  _formatDate(createdAt),
+                ),
             ],
           ),
           const SizedBox(height: 100), // Extra space for bottom button
@@ -593,8 +602,18 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
     try {
       final dt = DateTime.parse(date.toString());
       final months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
     } catch (_) {
@@ -608,7 +627,9 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
     required Color iconColor,
     required List<Widget> children,
   }) {
-    final filteredChildren = children.where((w) => w is! SizedBox || (w as SizedBox).height != 0).toList();
+    final filteredChildren = children
+        .where((w) => w is! SizedBox || w.height != 0)
+        .toList();
 
     if (filteredChildren.isEmpty) {
       return const SizedBox.shrink();
@@ -622,7 +643,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -636,14 +657,10 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 20,
-                ),
+                child: Icon(icon, color: iconColor, size: 20),
               ),
               const SizedBox(width: 12),
               Text(
@@ -671,11 +688,7 @@ class _AdminJobDetailsScreenState extends State<AdminJobDetailsScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: Colors.grey.shade500,
-          ),
+          Icon(icon, size: 20, color: Colors.grey.shade500),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -721,7 +734,8 @@ class AdminApplicantsListPage extends StatefulWidget {
   });
 
   @override
-  State<AdminApplicantsListPage> createState() => _AdminApplicantsListPageState();
+  State<AdminApplicantsListPage> createState() =>
+      _AdminApplicantsListPageState();
 }
 
 class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
@@ -737,10 +751,11 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
 
   Future<void> _fetchApplicants() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final uri = Uri.parse(
-        'http://13.203.67.154:3000/api/jobs/applied-jobs/specific-jobs/${widget.jobId}',
+        '${AppConfig.apiBaseUrl}/jobs/applied-jobs/specific-jobs/${widget.jobId}',
+
       );
       final response = await http.get(uri).timeout(const Duration(seconds: 15));
 
@@ -759,36 +774,36 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
         final list = data is List
             ? data
             : (data is Map && data['applications'] is List
-                ? data['applications']
-                : <dynamic>[]);
+                  ? data['applications']
+                  : <dynamic>[]);
 
         final applicants = <Map<String, dynamic>>[];
         for (final item in list) {
           if (item is! Map) continue;
           final m = item;
-          
+
           // Extract profile data
-          final profileData = m['applicant'] is Map 
-              ? m['applicant'] as Map 
+          final profileData = m['applicant'] is Map
+              ? m['applicant'] as Map
               : (m['applicant'] == null ? m : <String, dynamic>{});
-          
+
           // Create a mutable map starting with profile data
           final merged = Map<String, dynamic>.from(profileData);
-          
+
           // Add application-level fields
           if (m.containsKey('status')) merged['status'] = m['status'];
           if (m.containsKey('createdAt')) merged['appliedOn'] = m['createdAt'];
           if (m.containsKey('_id')) merged['applicationId'] = m['_id'];
-          
+
           // Capture surgeonprofile_id for navigation to surgeon profile
           if (m.containsKey('surgeonprofile_id')) {
             merged['surgeonprofile_id'] = m['surgeonprofile_id'];
           } else if (m.containsKey('surgeonProfileId')) {
             merged['surgeonprofile_id'] = m['surgeonProfileId'];
-          } else if (profileData is Map && profileData.containsKey('_id')) {
+          } else if (profileData.containsKey('_id')) {
             merged['surgeonprofile_id'] = profileData['_id'];
           }
-          
+
           applicants.add(merged);
         }
 
@@ -819,15 +834,17 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
   }
 
   void _navigateToSurgeonProfile(Map<String, dynamic> applicant) {
-    final surgeonProfileId = (applicant['surgeonprofile_id'] ?? '').toString().trim();
-    
+    final surgeonProfileId = (applicant['surgeonprofile_id'] ?? '')
+        .toString()
+        .trim();
+
     if (surgeonProfileId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Surgeon profile ID not found')),
       );
       return;
     }
-    
+
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -864,7 +881,7 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
             Text(
               widget.jobTitle,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
                 fontSize: 12,
               ),
             ),
@@ -879,15 +896,13 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
       ),
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(
-                color: Color(0xFF1E3A5F),
-              ),
+              child: CircularProgressIndicator(color: Color(0xFF1E3A5F)),
             )
           : _errorMessage != null
-              ? _buildErrorState()
-              : _applicants.isEmpty
-                  ? _buildEmptyState()
-                  : _buildApplicantsList(),
+          ? _buildErrorState()
+          : _applicants.isEmpty
+          ? _buildEmptyState()
+          : _buildApplicantsList(),
     );
   }
 
@@ -898,19 +913,12 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 60,
-              color: Colors.red.shade300,
-            ),
+            Icon(Icons.error_outline, size: 60, color: Colors.red.shade300),
             const SizedBox(height: 16),
             Text(
               _errorMessage ?? 'An error occurred',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade700,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -937,7 +945,7 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E3A5F).withOpacity(0.1),
+              color: const Color(0xFF1E3A5F).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -958,10 +966,7 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
           const SizedBox(height: 8),
           Text(
             'Pull down to refresh',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -984,18 +989,26 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
 
   Widget _buildApplicantCard(Map<String, dynamic> applicant) {
     // Extract name fields
-    final firstName = (applicant['firstName'] ?? applicant['fullName'] ?? applicant['name'] ?? '').toString();
+    final firstName =
+        (applicant['firstName'] ??
+                applicant['fullName'] ??
+                applicant['name'] ??
+                '')
+            .toString();
     final lastName = (applicant['lastName'] ?? '').toString();
-    final name = [firstName, lastName].where((s) => s.isNotEmpty).join(' ').trim();
-    
-    final email = (applicant['email'] ?? '').toString();
-    final phone = (applicant['phoneNumber'] ?? '').toString();
+    final name = [
+      firstName,
+      lastName,
+    ].where((s) => s.isNotEmpty).join(' ').trim();
+
     final speciality = (applicant['speciality'] ?? '').toString();
     final experience = applicant['yearsOfExperience'];
     final status = (applicant['status'] ?? 'Applied').toString();
-    final profilePic = (applicant['profilePicture'] ?? applicant['profilePic'] ?? '').toString();
+    final profilePic =
+        (applicant['profilePicture'] ?? applicant['profilePic'] ?? '')
+            .toString();
     final appliedOn = (applicant['appliedOn'] ?? '').toString();
-    
+
     // Format applied date
     String formattedDate = '';
     if (appliedOn.isNotEmpty && appliedOn.contains('T')) {
@@ -1012,7 +1025,7 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -1032,7 +1045,7 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
                   width: 55,
                   height: 55,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E3A5F).withOpacity(0.1),
+                    color: const Color(0xFF1E3A5F).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                     image: profilePic.isNotEmpty
                         ? DecorationImage(
@@ -1128,7 +1141,7 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(status).withOpacity(0.1),
+                        color: _getStatusColor(status).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -1141,10 +1154,7 @@ class _AdminApplicantsListPageState extends State<AdminApplicantsListPage> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Icon(
-                      Icons.chevron_right,
-                      color: Colors.grey.shade400,
-                    ),
+                    Icon(Icons.chevron_right, color: Colors.grey.shade400),
                   ],
                 ),
               ],

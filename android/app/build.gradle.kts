@@ -3,60 +3,68 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android") // ✅ Correct plugin name for modern Gradle
-    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id("org.jetbrains.kotlin.android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Load key.properties file for release signing
+// Load key.properties for release signing
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties()
+
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
-    namespace = "in.surgeonsearch.doc"
-    compileSdk = flutter.compileSdkVersion
+    namespace = "com.venka.surgeonsearch"
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     compileOptions {
-        // ✅ Updated to use Java 17 for modern Android builds
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        // ✅ Match the Java version (important for Gradle sync)
         jvmTarget = "17"
     }
 
-    // ✅ Release signing configuration
     signingConfigs {
         create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String? ?: "upload"
-            keyPassword = keystoreProperties["keyPassword"] as String? ?: ""
-            storeFile = rootProject.file(keystoreProperties["storeFile"] as String? ?: "upload-keystore.jks")
-            storePassword = keystoreProperties["storePassword"] as String? ?: ""
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
         }
     }
 
     defaultConfig {
-        applicationId = "in.surgeonsearch.doc"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        applicationId = "com.venka.surgeonsearch"
+        minSdk = 21
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            // ✅ Use release signing for production builds
+            isMinifyEnabled = true
+            isShrinkResources = true
+
             signingConfig = signingConfigs.getByName("release")
+
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    implementation("androidx.activity:activity-ktx:1.8.0")
 }

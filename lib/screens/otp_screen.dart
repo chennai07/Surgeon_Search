@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:doc/screens/signin_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 
 class OtpScreen extends StatefulWidget {
   final String email;
@@ -56,7 +58,8 @@ class _OtpScreenState extends State<OtpScreen> {
       isLoading = true;
     });
 
-    final url = Uri.parse('http://13.203.67.154:3000/api/otp/verify');
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/otp/verify');
+
     
     try {
       final response = await http.post(

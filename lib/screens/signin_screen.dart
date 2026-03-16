@@ -2,20 +2,20 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 import 'package:doc/healthcare/hospial_form.dart';
-import 'package:doc/healthcare/hospital_profile.dart';
-import 'package:doc/Navbar.dart';
+import 'package:doc/navbar.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
 import 'package:doc/profileprofile/surgeon_profile.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:iconsax/iconsax.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/screens/signup_screen.dart';
 import 'package:doc/screens/forgot_password_screen.dart';
 import 'package:doc/admin/admin_navbar.dart';
+import 'package:doc/utils/app_config.dart';
+
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -97,7 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       // Use root path which always exists and still wakes the instance
       await http
-          .get(Uri.parse('http://13.203.67.154:3000/'))
+          .get(Uri.parse('${AppConfig.serverUrl}/'))
+
           .timeout(const Duration(seconds: 8));
       debugPrint(' Server is awake');
     } catch (_) {
@@ -152,7 +153,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (_isLoading) return;
     setState(() => _isLoading = true);
 
-    final url = Uri.parse('http://13.203.67.154:3000/api/signin');
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/signin');
+
     const uuid = Uuid();
 
     try {
@@ -197,13 +199,12 @@ class _LoginScreenState extends State<LoginScreen> {
         final extractedProfileId = _extractProfileId(userData) ??
             (data is Map ? _extractProfileId(data['profile']) : null) ??
             _extractProfileId(data);
-        String profileId =
-            ((extractedProfileId ??
-                        (userData is Map ? userData['_id']?.toString() : null) ??
-                        (userData is Map ? userData['profile_id']?.toString() : null) ??
-                        (userData is Map ? userData['id']?.toString() : null) ??
-                        '') as String)
-                    .trim();
+        String profileId = (extractedProfileId ??
+                (userData is Map ? userData['_id']?.toString() : null) ??
+                (userData is Map ? userData['profile_id']?.toString() : null) ??
+                (userData is Map ? userData['id']?.toString() : null) ??
+                '')
+            .trim();
         if (profileId.isEmpty) profileId = uuid.v4();
 
         // Save session
@@ -315,7 +316,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
             try {
               final url = Uri.parse(
-                  'http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId');
+                  '${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$healthcareId');
+
               final resp = await http.get(url).timeout(const Duration(seconds: 10));
 
               if (resp.statusCode == 200) {
@@ -365,6 +367,7 @@ class _LoginScreenState extends State<LoginScreen> {
             final idForForm = (healthcareId != null && healthcareId.isNotEmpty)
                 ? healthcareId
                 : profileId;
+            if (!mounted) return;
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -375,6 +378,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else if (rl.contains('surgeon') || rl.contains('doctor')) {
           try {
             final res = await ApiService.fetchProfileInfo(profileId);
+            if (!mounted) return;
             if (res['success'] == true) {
               final body = res['data'];
               final data = body is Map && body['data'] != null ? body['data'] : body;
@@ -389,6 +393,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 }
               }
 
+              if (!mounted) return;
               final hasValidProfile = p is Map &&
                   (((p['fullName'] ?? p['fullname'] ?? '')
                               .toString()
@@ -430,6 +435,7 @@ class _LoginScreenState extends State<LoginScreen> {
               );
             }
           } catch (_) {
+            if (!mounted) return;
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -460,23 +466,28 @@ class _LoginScreenState extends State<LoginScreen> {
             message = error['message'];
           }
         } catch (_) {}
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('❌ $message')));
       }
     } on TimeoutException catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('⏳ Server is taking too long to respond. Please try again.')));
     } on HandshakeException catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('🔒 Secure connection failed. Check date/time, VPN/proxy, or try a different network.')));
     } on SocketException catch (_) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('📡 Network error. Check your internet connection and try again.')));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('⚠️ Unexpected error: $e')));
@@ -668,7 +679,7 @@ class _LoginScreenState extends State<LoginScreen> {
             // ⏳ Loading Overlay
             if (_isLoading)
               Container(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 child: const Center(
                   child: CircularProgressIndicator(color: Colors.blueAccent),
                 ),

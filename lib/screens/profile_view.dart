@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 
 class ProfileView extends StatefulWidget {
   final String profileId;
@@ -49,12 +51,13 @@ class _ProfileViewState extends State<ProfileView> {
 
   Future<void> fetchProfileInfo() async {
     final String apiUrl =
-        "http://13.203.67.154:3000/api/sugeon/profile-info/${widget.profileId}";
+        "${AppConfig.apiBaseUrl}/sugeon/profile-info/${widget.profileId}";
+
 
     try {
       final response = await http.get(Uri.parse(apiUrl));
-      debugPrint("Profile API status: ${response.statusCode}");
-      debugPrint("Profile API body: ${response.body}");
+// Removed debug print
+// Removed debug print
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
@@ -78,7 +81,7 @@ class _ProfileViewState extends State<ProfileView> {
         });
       }
     } catch (e) {
-      debugPrint("fetchProfileInfo error: $e");
+// Removed debug print
       setState(() {
         profileData = {}; // Explicitly handle network/parsing errors
         isLoading = false;
@@ -162,7 +165,7 @@ class _ProfileViewState extends State<ProfileView> {
                   children: [
                     CircleAvatar(
                       radius: 40,
-                      backgroundColor: Colors.lightBlueAccent.withOpacity(0.5),
+                      backgroundColor: Colors.lightBlueAccent.withValues(alpha: 0.5),
                       backgroundImage: profileImageUrl.startsWith('http')
                           ? NetworkImage(profileImageUrl)
                           : null,
@@ -251,7 +254,7 @@ class _ProfileViewState extends State<ProfileView> {
                 if (experiences.isEmpty)
                   const Text("No work experience added.")
                 else
-                  ...experiences.map((e) => _buildExperienceCard(e)).toList(),
+                  ...experiences.map((e) => _buildExperienceCard(e)),
               ],
             ),
           ],

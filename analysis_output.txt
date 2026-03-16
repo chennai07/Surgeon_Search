@@ -1,0 +1,138 @@
+Analyzing Surgeon_Search...                                     
+
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\healthcare\hospital_profile.dart:410:17 - use_build_context_synchronously
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\homescreen\applied_job_details_screen.dart:329:39 - sized_box_for_whitespace
+   info - Statements in an if should be enclosed in a block - lib\homescreen\applied_jobs.dart:87:35 - curly_braces_in_flow_control_structures
+   info - Statements in an if should be enclosed in a block - lib\homescreen\applied_jobs.dart:88:41 - curly_braces_in_flow_control_structures
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\homescreen\applied_jobs.dart:579:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\homescreen\applied_jobs.dart:588:17 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\homescreen\job_details_screen.dart:765:50 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\homescreen\job_details_screen.dart:766:48 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\homescreen\job_details_screen.dart:768:52 - use_build_context_synchronously
+   info - Unnecessary use of 'toList' in a spread - lib\homescreen\search_job_screen.dart:417:32 - unnecessary_to_list_in_spreads
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\homescreen\search_job_screen.dart:499:38 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check - lib\homescreen\search_job_screen.dart:507:17 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:140:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:141:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:142:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:143:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:149:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:152:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:155:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:158:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:182:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:193:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:198:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:203:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:219:19 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:227:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:230:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:235:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:259:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:260:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:269:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:274:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:275:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:319:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:333:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:334:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:351:19 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:352:19 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:361:17 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:365:13 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\hospital\applicants.dart:369:30 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\hospital\applicants.dart:378:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\hospital\interview_page.dart:81:32 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:87:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:135:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:151:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:164:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:190:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:199:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:200:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:223:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\interview_page.dart:509:7 - avoid_print
+   info - Use 'rethrow' to rethrow a caught exception - lib\hospital\interview_page.dart:510:7 - use_rethrow_when_possible
+   info - Use a 'SizedBox' to add whitespace to a layout - lib\hospital\job_details_screen.dart:482:39 - sized_box_for_whitespace
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:724:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1122:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1123:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1131:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1132:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1156:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1379:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1380:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1399:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1423:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1490:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1491:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1510:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1534:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\job_details_screen.dart:1551:7 - avoid_print
+   info - Don't use 'BuildContext's across async gaps - lib\hospital\job_details_screen.dart:1823:44 - use_build_context_synchronously
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:37:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:76:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:113:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:119:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:124:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:128:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:146:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:151:15 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:161:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\my_jobs_page.dart:207:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\scheduled_interviews.dart:115:11 - avoid_print
+   info - Don't invoke 'print' in production code - lib\hospital\scheduled_interviews.dart:129:11 - avoid_print
+   info - Unnecessary use of 'toList' in a spread - lib\hospital\scheduled_interviews.dart:285:16 - unnecessary_to_list_in_spreads
+   info - Don't invoke 'print' in production code - lib\hospital\scheduled_interviews.dart:338:7 - avoid_print
+   info - An uninitialized variable should have an explicit type annotation - lib\model\api.dart:12:9 - prefer_typing_uninitialized_variables
+   info - Don't invoke 'print' in production code - lib\model\api.dart:20:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\model\api.dart:39:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\model\api.dart:53:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\model\api_service.dart:37:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\model\api_service.dart:118:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\model\api_service.dart:165:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\navbar.dart:33:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\navbar.dart:34:5 - avoid_print
+   info - The imported package 'path' isn't a dependency of the importing package - lib\profileprofile\surgeon_form.dart:9:8 - depend_on_referenced_packages
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:276:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:277:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:294:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:460:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:464:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:470:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:495:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:496:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:497:5 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:500:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:505:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:507:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:510:9 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:514:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:521:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:523:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:524:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:592:13 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_form.dart:600:7 - avoid_print
+   info - Don't invoke 'print' in production code - lib\profileprofile\surgeon_profile.dart:801:5 - avoid_print
+   info - Unnecessary use of 'toList' in a spread - lib\screens\profile_view.dart:254:70 - unnecessary_to_list_in_spreads
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:366:15 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:400:19 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:409:19 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:420:17 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:431:15 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:461:11 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:466:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:470:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:474:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signin_screen.dart:478:9 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signup_screen.dart:71:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signup_screen.dart:83:13 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signup_screen.dart:102:30 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\signup_screen.dart:107:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\splash_screen.dart:71:11 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\screens\splash_screen.dart:79:11 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\subscription_plan_screen\freetrial_ended_screen.dart:124:28 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\widgets\file_picker.dart:110:26 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\widgets\file_picker.dart:388:43 - use_build_context_synchronously
+   info - Don't use 'BuildContext's across async gaps - lib\widgets\file_picker.dart:389:48 - use_build_context_synchronously
+

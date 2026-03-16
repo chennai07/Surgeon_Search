@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 import 'package:doc/admin/job_details_screen.dart';
 
 /// JobsTab displays the list of all jobs for admin management.
@@ -47,13 +49,13 @@ class _JobsTabState extends State<JobsTab> {
     setState(() => _isLoading = true);
 
     try {
-      final url = Uri.parse('http://13.203.67.154:3000/api/admin/joblist');
+      final url = Uri.parse('${AppConfig.apiBaseUrl}/admin/joblist');
+
       final response = await http.get(url).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final body = jsonDecode(response.body);
         final data = body['data'];
-        final total = body['total'] ?? 0;
 
         setState(() {
           if (data is List) {
@@ -539,9 +541,9 @@ class _JobsTabState extends State<JobsTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -564,7 +566,7 @@ class _JobsTabState extends State<JobsTab> {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: color.withOpacity(0.8),
+                color: color.withValues(alpha: 0.8),
                 fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
@@ -587,7 +589,7 @@ class _JobsTabState extends State<JobsTab> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E3A5F).withOpacity(0.1),
+              color: const Color(0xFF1E3A5F).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -657,7 +659,7 @@ class _JobsTabState extends State<JobsTab> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -680,7 +682,7 @@ class _JobsTabState extends State<JobsTab> {
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1976D2).withOpacity(0.1),
+                        color: const Color(0xFF1976D2).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         image: logo.isNotEmpty
                             ? DecorationImage(
@@ -736,7 +738,7 @@ class _JobsTabState extends State<JobsTab> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: _getStatusColor(status).withOpacity(0.1),
+                        color: _getStatusColor(status).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -795,7 +797,7 @@ class _JobsTabState extends State<JobsTab> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.green.withOpacity(0.1),
+                          color: Colors.green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -842,7 +844,7 @@ class _JobsTabState extends State<JobsTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E3A5F).withOpacity(0.08),
+        color: const Color(0xFF1E3A5F).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(

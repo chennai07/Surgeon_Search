@@ -1,19 +1,19 @@
 import 'dart:io';
 import 'dart:convert';
+import 'package:logger/logger.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:get/get.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:doc/model/api_service.dart';
-import 'package:doc/healthcare/hospital_profile.dart';
-import 'package:doc/Navbar.dart';
+import 'package:doc/navbar.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/utils/session_manager.dart';
+import 'package:doc/utils/app_config.dart';
 import 'package:dropdown_search/dropdown_search.dart';
+
 import 'package:doc/model/indian_states_districts.dart';
 
 class HospitalForm extends StatefulWidget {
@@ -24,6 +24,8 @@ class HospitalForm extends StatefulWidget {
   @override
   State<HospitalForm> createState() => _HospitalFormState();
 }
+
+final _logger = Logger();
 
 // Inline helpers to avoid missing ApiService methods during build
 Future<Map<String, dynamic>> _addHealthcareProfile({
@@ -43,10 +45,11 @@ Future<Map<String, dynamic>> _addHealthcareProfile({
   File? logoFile,
 }) async {
   try {
-    final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/add');
+    final uri = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/add');
+
     final req = http.MultipartRequest('POST', uri);
 
-    print('🏥 Creating hospital profile with healthcare_id: $healthcareId');
+    _logger.i('🏥 Creating hospital profile with healthcare_id: $healthcareId');
 
     req.fields.addAll({
       'hospitalName': hospitalName,
@@ -74,10 +77,10 @@ Future<Map<String, dynamic>> _addHealthcareProfile({
     }
 
     if (logoFile != null) {
-      print('🏥 Adding hospital logo to create request: ${logoFile.path}');
+      _logger.i('🏥 Adding hospital logo to create request: ${logoFile.path}');
       req.files.add(await http.MultipartFile.fromPath('hospitalLogo', logoFile.path));
     } else {
-      print('🏥 No logo file provided in create request');
+      _logger.i('🏥 No logo file provided in create request');
     }
 
     final streamed = await req.send();
@@ -140,10 +143,11 @@ Future<Map<String, dynamic>> _updateHealthcareProfile({
     // also sent IN THE BODY, as the backend likely looks for it there too.
     // If PUT fails repeatedly, switching to POST might be the next debugging step,
     // but first let's ensure the ID is in the body.
-    final uri = Uri.parse('http://13.203.67.154:3000/api/healthcare/edit/$healthcareId');
+    final uri = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/edit/$healthcareId');
+
     final req = http.MultipartRequest('PUT', uri);
 
-    print('🏥 Updating hospital profile for healthcare_id: $healthcareId');
+    _logger.i('🏥 Updating hospital profile for healthcare_id: $healthcareId');
 
     req.fields.addAll({
       'healthcare_id': healthcareId, // Explicitly adding this as requested
@@ -170,18 +174,18 @@ Future<Map<String, dynamic>> _updateHealthcareProfile({
     }
 
     if (logoFile != null) {
-      print('🏥 Adding hospital logo to update request: ${logoFile.path}');
+      _logger.i('🏥 Adding hospital logo to update request: ${logoFile.path}');
       req.files.add(await http.MultipartFile.fromPath('hospitalLogo', logoFile.path));
     } else {
-      print('🏥 No new logo file provided in update request (keeping existing logo)');
+      _logger.i('🏥 No new logo file provided in update request (keeping existing logo)');
     }
 
     final streamed = await req.send();
     final res = await http.Response.fromStream(streamed);
 
-    print('🏥 Update Response Status: ${res.statusCode}');
-    print('🏥 Update Response Headers: ${res.headers}');
-    print('🏥 Update Response Body: ${res.body}');
+    _logger.i('🏥 Update Response Status: ${res.statusCode}');
+    _logger.i('🏥 Update Response Headers: ${res.headers}');
+    _logger.d('🏥 Update Response Body: ${res.body}');
 
     final body = res.body;
     final ct = res.headers['content-type'] ?? '';
@@ -192,29 +196,29 @@ Future<Map<String, dynamic>> _updateHealthcareProfile({
       if (isJson) {
         try {
           final decoded = jsonDecode(body);
-          print('🏥 Update Success - Decoded Response: $decoded');
+          _logger.i('🏥 Update Success - Decoded Response: $decoded');
           return {'success': true, 'data': decoded};
         } catch (_) {
-          print('🏥 Update Success - Raw Response: $body');
+          _logger.i('🏥 Update Success - Raw Response: $body');
           return {'success': true, 'data': {'raw': body}};
         }
       } else {
-        print('🏥 Update Success - Non-JSON Response: $body');
+        _logger.i('🏥 Update Success - Non-JSON Response: $body');
         return {'success': true, 'data': {'raw': body}};
       }
     }
     if (isJson) {
       try {
         final err = jsonDecode(body);
-        print('🏥 Update Failed - Error Response: $err');
+        _logger.w('🏥 Update Failed - Error Response: $err');
         return {'success': false, 'message': err['message'] ?? body};
       } catch (_) {
-        print('🏥 Update Failed - Raw Error: $body');
+        _logger.w('🏥 Update Failed - Raw Error: $body');
         return {'success': false, 'message': body};
       }
     }
     final snippet = body.length > 200 ? body.substring(0, 200) : body;
-    print('🏥 Update Failed - HTTP ${res.statusCode}: $snippet');
+    _logger.w('🏥 Update Failed - HTTP ${res.statusCode}: $snippet');
     return {'success': false, 'message': 'HTTP ${res.statusCode}: $snippet'};
   } catch (e) {
     return {'success': false, 'message': e.toString()};
@@ -223,7 +227,8 @@ Future<Map<String, dynamic>> _updateHealthcareProfile({
 
 Future<Map<String, dynamic>> _fetchHealthcareProfile(String healthcareId) async {
   try {
-    final url = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId');
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$healthcareId');
+
     final res = await http.get(url);
     final body = res.body;
     final ct = res.headers['content-type'] ?? '';
@@ -271,7 +276,7 @@ class _HospitalFormState extends State<HospitalForm> {
 
   void _prefillData() {
     final d = widget.existingData!;
-    print("🏥 HospitalForm: Prefilling data: $d");
+    _logger.d("🏥 HospitalForm: Prefilling data: $d");
     
     hospitalNameController.text = d['hospitalName']?.toString() ?? '';
     phoneController.text = d['phoneNumber']?.toString() ?? '';
@@ -280,8 +285,8 @@ class _HospitalFormState extends State<HospitalForm> {
     websiteController.text = d['hospitalWebsite']?.toString() ?? '';
     hospitalLogoUrl = d['hospitalLogo']?.toString();
     
-    print("🏥 Hospital Name: ${hospitalNameController.text}");
-    print("🏥 Hospital Logo URL: $hospitalLogoUrl");
+    _logger.d("🏥 Hospital Name: ${hospitalNameController.text}");
+    _logger.d("🏥 Hospital Logo URL: $hospitalLogoUrl");
     
     // State and District prefill
     final stateValue = d['state']?.toString() ?? '';
@@ -342,7 +347,7 @@ class _HospitalFormState extends State<HospitalForm> {
   }
 
   Future<void> _redirectIfProfileExists() async {
-    print('🏥 Checking if profile already exists for healthcareId: ${widget.healthcareId}');
+    _logger.i('🏥 Checking if profile already exists for healthcareId: ${widget.healthcareId}');
     
     try {
       // First, try the main ID lookup
@@ -362,8 +367,8 @@ class _HospitalFormState extends State<HospitalForm> {
              normalized['phoneNumber']?.toString().trim().isNotEmpty == true);
         
         if (hasValidProfile) {
-          print('🏥 ✅ Valid profile found! Redirecting to dashboard');
-          print('🏥 Profile data: Hospital=${normalized['hospitalName']}, Email=${normalized['email']}');
+          _logger.i('🏥 ✅ Valid profile found! Redirecting to dashboard');
+          _logger.d('🏥 Profile data: Hospital=${normalized['hospitalName']}, Email=${normalized['email']}');
           
           Navigator.pushReplacement(
             context,
@@ -371,20 +376,21 @@ class _HospitalFormState extends State<HospitalForm> {
           );
           return; // Exit early
         } else {
-          print('🏥 ⚠️ Profile exists but has no valid data');
+          _logger.w('🏥 ⚠️ Profile exists but has no valid data');
         }
       } else {
-        print('🏥 ⚠️ Profile fetch failed with ID lookup');
+        _logger.w('🏥 ⚠️ Profile fetch failed with ID lookup');
       }
       
       // If ID lookup failed, try email lookup as fallback
       // Get user email from session
       final userEmail = await SessionManager.getUserEmail();
       if (userEmail != null && userEmail.isNotEmpty) {
-        print('🏥 Trying email-based profile lookup for: $userEmail');
+        _logger.i('🏥 Trying email-based profile lookup for: $userEmail');
         
         try {
-          final emailUrl = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/email/$userEmail');
+          final emailUrl = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/email/$userEmail');
+
           final emailResp = await http.get(emailUrl).timeout(const Duration(seconds: 10));
           
           if (emailResp.statusCode == 200) {
@@ -396,7 +402,7 @@ class _HospitalFormState extends State<HospitalForm> {
                 emailMapPayload['hospitalName']?.toString().trim().isNotEmpty == true;
             
             if (hasValidEmailProfile) {
-              print('🏥 ✅ Profile found by email! Redirecting to dashboard');
+              _logger.i('🏥 ✅ Profile found by email! Redirecting to dashboard');
               
               if (!mounted) return;
               Navigator.pushReplacement(
@@ -407,17 +413,17 @@ class _HospitalFormState extends State<HospitalForm> {
             }
           }
         } catch (e) {
-          print('🏥 ⚠️ Email-based lookup failed: $e');
+          _logger.e('🏥 ⚠️ Email-based lookup failed: $e');
         }
       } else {
-        print('🏥 ⚠️ No user email in session for fallback lookup');
+        _logger.w('🏥 ⚠️ No user email in session for fallback lookup');
       }
       
       // If we reach here, no existing profile was found
-      print('🏥 ℹ️ No existing profile found. User can fill the form.');
+      _logger.i('🏥 ℹ️ No existing profile found. User can fill the form.');
       
     } catch (e) {
-      print('🏥 ❌ Error during profile check: $e');
+      _logger.e('🏥 ❌ Error during profile check: $e');
       // Allow form to be shown if there's an error
     }
   }
@@ -492,10 +498,12 @@ class _HospitalFormState extends State<HospitalForm> {
       );
       
       if (pickedFile != null) {
-        setState(() => hospitalLogo = File(pickedFile.path));
+        if (mounted) {
+          setState(() => hospitalLogo = File(pickedFile.path));
+        }
       }
     } catch (e) {
-      print("Error picking image: $e");
+      _logger.e("Error picking image: $e");
       Get.snackbar(
         "Error",
         "Failed to pick image. Please try again.",
@@ -521,7 +529,7 @@ class _HospitalFormState extends State<HospitalForm> {
       return;
     }
 
-    print('🏥 Submitting hospital profile with healthcare_id: ${widget.healthcareId}');
+    _logger.i('🏥 Submitting hospital profile with healthcare_id: ${widget.healthcareId}');
 
     // Submit to backend (inline to avoid missing ApiService helpers)
     final res = await _addHealthcareProfile(
@@ -546,9 +554,11 @@ class _HospitalFormState extends State<HospitalForm> {
       logoFile: hospitalLogo,
     );
 
-    print('🏥 Hospital profile creation response: ${res['success']}');
+    if (!mounted) return;
+
+    _logger.i('🏥 Hospital profile creation response: ${res['success']}');
     if (res['data'] != null) {
-      print('🏥 Response data: ${res['data']}');
+      _logger.d('🏥 Response data: ${res['data']}');
     }
 
     if (res['success'] == true) {
@@ -573,22 +583,22 @@ class _HospitalFormState extends State<HospitalForm> {
           
           if (extractedId != null && extractedId.toString().trim().isNotEmpty) {
             finalHealthcareId = extractedId.toString().trim();
-            print('🏥 ✅ Extracted healthcare_id from backend response: $finalHealthcareId');
+            _logger.i('🏥 ✅ Extracted healthcare_id from backend response: $extractedId');
           } else {
-            print('🏥 ⚠️ No healthcare_id found in response, using original: $finalHealthcareId');
+            _logger.w('🏥 ⚠️ No healthcare_id found in response, using original: $finalHealthcareId');
           }
         }
       }
 
       // Save this as the canonical healthcare_id for all future operations
       await SessionManager.saveHealthcareId(finalHealthcareId);
-      print('🏥 💾 Saved healthcare_id to session: $finalHealthcareId');
+      _logger.i('🏥 💾 Saved healthcare_id to session: $finalHealthcareId');
 
       // 🔥 CRITICAL: Save email→profile_id mapping for future logins
       // This allows us to find the profile even with backend ID mismatch
       final userEmail = emailController.text.trim();
       await SessionManager.saveUserProfileMapping(userEmail, finalHealthcareId);
-      print('🏥 💾 Saved profile mapping: $userEmail → $finalHealthcareId');
+      _logger.i('🏥 💾 Saved profile mapping: $userEmail → $finalHealthcareId');
 
       // Skip fetching profile immediately to avoid consistency delays.
       // We have the ID and the data we just submitted.
@@ -630,32 +640,11 @@ class _HospitalFormState extends State<HospitalForm> {
         }
       }
       
-      print('🏥 Final hospital data for navigation: $finalHospitalData');
+      _logger.d('🏥 Final hospital data for navigation: $finalHospitalData');
       
-      print('🏥 Navigating to Free Trial Screen with healthcare_id: $finalHealthcareId');
+      _logger.i('🏥 Navigating to Navbar with healthcare_id: $finalHealthcareId');
 
-      // Extract payment info from the INITIAL response (res['data'])
-      int paymentAmount = 0;
-      String facilityCategory = selectedFacilityCategory ?? "Corporate";
-
-      if (res['data'] != null) {
-        final rData = res['data'];
-        if (rData is Map) {
-          // Check top level or inside 'data'
-          if (rData.containsKey('paymentAmount')) {
-            paymentAmount = int.tryParse(rData['paymentAmount'].toString()) ?? 0;
-          } else if (rData['data'] is Map && rData['data'].containsKey('paymentAmount')) {
-            paymentAmount = int.tryParse(rData['data']['paymentAmount'].toString()) ?? 0;
-          }
-
-          // Also try to get facilityCategory from response if available, otherwise use selected
-          if (rData.containsKey('facilityCategory')) {
-            facilityCategory = rData['facilityCategory'].toString();
-          } else if (rData['data'] is Map && rData['data'].containsKey('facilityCategory')) {
-            facilityCategory = rData['data']['facilityCategory'].toString();
-          }
-        }
-      }
+      if (!mounted) return;
 
       // Bypassing HospitalFreeTrialScreen
       Navigator.pushReplacement(
@@ -696,12 +685,12 @@ class _HospitalFormState extends State<HospitalForm> {
       }
     }
 
-    print('🏥 Updating hospital profile using ID: $idToUse');
-    print('🏥 Widget healthcare_id: ${widget.healthcareId}');
-    print('🏥 _id from existingData: ${widget.existingData?['_id']}');
-    print('🏥 healthcare_id from existingData: ${widget.existingData?['healthcare_id']}');
-    print('🏥 Logo file to upload: ${hospitalLogo != null ? hospitalLogo!.path : "No new logo selected"}');
-    print('🏥 Existing logo URL: $hospitalLogoUrl');
+    _logger.i('🏥 Updating hospital profile using ID: $idToUse');
+    _logger.d('🏥 Widget healthcare_id: ${widget.healthcareId}');
+    _logger.d('🏥 _id from existingData: ${widget.existingData?['_id']}');
+    _logger.d('🏥 healthcare_id from existingData: ${widget.existingData?['healthcare_id']}');
+    _logger.d('🏥 Logo file to upload: ${hospitalLogo != null ? hospitalLogo!.path : "No new logo selected"}');
+    _logger.d('🏥 Existing logo URL: $hospitalLogoUrl');
 
     final res = await _updateHealthcareProfile(
       healthcareId: idToUse,
@@ -724,19 +713,23 @@ class _HospitalFormState extends State<HospitalForm> {
       logoFile: hospitalLogo,
     );
 
+    if (!mounted) return;
+
     if (res['success'] == true) {
-      print('🏥 ✅ Profile update successful!');
+      _logger.i('🏥 ✅ Profile update successful!');
       
       // Fetch the updated profile to get the new logo URL
       try {
         final fetchRes = await _fetchHealthcareProfile(idToUse);
         if (fetchRes['success'] == true && fetchRes['data'] != null) {
           final updatedData = fetchRes['data'] is Map ? fetchRes['data'] : {};
-          print('🏥 Updated logo URL: ${updatedData['hospitalLogo']}');
+          _logger.i('🏥 Updated logo URL: ${updatedData['hospitalLogo']}');
         }
       } catch (e) {
-        print('🏥 ⚠️ Could not fetch updated profile: $e');
+        _logger.e('🏥 ⚠️ Could not fetch updated profile: $e');
       }
+      
+      if (!mounted) return;
       
       Get.snackbar(
         'Success', 
@@ -746,7 +739,7 @@ class _HospitalFormState extends State<HospitalForm> {
       );
       Navigator.pop(context, true); // Go back to profile with refresh signal
     } else {
-      print('🏥 ❌ Profile update failed: ${res['message']}');
+      _logger.e('🏥 ❌ Profile update failed: ${res['message']}');
       Get.snackbar(
         'Update Failed', 
         res['message']?.toString() ?? 'Error updating profile',
@@ -1041,7 +1034,7 @@ class _HospitalFormState extends State<HospitalForm> {
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.grey.withOpacity(0.1),
+                      color: Colors.grey.withValues(alpha: 0.1),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -1099,7 +1092,7 @@ class _HospitalFormState extends State<HospitalForm> {
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
+                        color: Colors.blue.withValues(alpha: 0.1),
                         blurRadius: 4,
                         offset: const Offset(0, 2),
                       ),
@@ -1293,7 +1286,7 @@ class _HospitalFormState extends State<HospitalForm> {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, -5),
               ),

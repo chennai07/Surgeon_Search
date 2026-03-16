@@ -147,7 +147,7 @@ class ApplicantCard extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: tagColor.withOpacity(0.1),
+                          color: tagColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(

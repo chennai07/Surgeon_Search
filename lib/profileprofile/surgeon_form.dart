@@ -7,15 +7,16 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
-import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:doc/profileprofile/surgeon_profile.dart';
 import 'package:dropdown_search/dropdown_search.dart';
+import 'package:logger/logger.dart';
 import 'package:doc/model/indian_states_districts.dart';
 import 'package:doc/utils/session_manager.dart';
-import 'package:doc/homescreen/SearchjobScreen.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:doc/utils/app_config.dart';
+
  
 const Map<String, List<String>> surgicalSpecialities = {
   'General Surgery': [
@@ -129,6 +130,8 @@ class SurgeonForm extends StatefulWidget {
   State<SurgeonForm> createState() => _SurgeonFormState();
 }
 
+final _logger = Logger();
+
 class SurgeonProfileView extends StatelessWidget {
   final Map<String, dynamic> data;
   const SurgeonProfileView({super.key, required this.data});
@@ -136,7 +139,7 @@ class SurgeonProfileView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = data;
-    final profile = d is Map && d['data'] != null ? d['data'] : d;
+    final profile = d['data'] ?? d;
     final p = profile is Map && profile['profile'] != null ? profile['profile'] : profile;
     return Scaffold(
       appBar: AppBar(title: const Text('Surgeon Profile')),
@@ -275,8 +278,8 @@ class _SurgeonFormState extends State<SurgeonForm> {
   }
 
   Future<void> _loadProfileIfAny() async {
-    print("🔍 SurgeonForm: Loading profile for ID: ${widget.profileId}");
-    print("🔍 SurgeonForm: Existing data provided: ${widget.existingData != null}");
+    _logger.i("🔍 SurgeonForm: Loading profile for ID: ${widget.profileId}");
+    _logger.i("🔍 SurgeonForm: Existing data provided: ${widget.existingData != null}");
     
     setState(() => isLoading = true);
     
@@ -293,7 +296,7 @@ class _SurgeonFormState extends State<SurgeonForm> {
         cvUrl = p['cv'];
         highestDegreeUrl = p['highestDegree'];
         logBookUrl = p['uploadLogBook'];
-        print("🔍 SurgeonForm: Profile Data: $p");
+        _logger.d("🔍 SurgeonForm: Profile Data: $p");
         fullName.text = (p['fullName'] ?? 
                          p['fullname'] ?? 
                          p['name'] ?? 
@@ -378,8 +381,9 @@ class _SurgeonFormState extends State<SurgeonForm> {
     setState(() => isLoading = true);
 
     final uri = Uri.parse(
-      "http://13.203.67.154:3000/api/sugeon/edit-profile/${widget.profileId}",
+      "${AppConfig.apiBaseUrl}/sugeon/edit-profile/${widget.profileId}",
     );
+
 
     var req = http.MultipartRequest("PUT", uri);
 
@@ -440,7 +444,6 @@ class _SurgeonFormState extends State<SurgeonForm> {
       Get.snackbar("✅ Success", "Profile Updated Successfully");
       final prof = await ApiService.fetchProfileInfo(widget.profileId);
       if (prof['success'] == true) {
-        final data = prof['data'];
         if (!mounted) return;
         Navigator.push(
           context,
@@ -460,17 +463,17 @@ class _SurgeonFormState extends State<SurgeonForm> {
 
   Future<void> createProfile() async {
     if (!formKey.currentState!.validate()) {
-      print('🔴 VALIDATION FAILED - Form not valid');
+      _logger.w('🔴 VALIDATION FAILED - Form not valid');
       return;
     }
 
-    print('🟢 VALIDATION PASSED - Starting profile creation');
+    _logger.i('🟢 VALIDATION PASSED - Starting profile creation');
     setState(() => isLoading = true);
     
     // Update work experience data from controllers
     _updateWorkExperienceData();
 
-    print('🔵 Calling ApiService.createProfile...');
+    _logger.i('🔵 Calling ApiService.createProfile...');
     final result = await ApiService.createProfile(
       fullName: fullName.text,
       phoneNumber: phoneNumber.text,
@@ -495,36 +498,36 @@ class _SurgeonFormState extends State<SurgeonForm> {
       district: selectedDistrict ?? districtCtrl.text,
     );
 
-    print('🔵 API Response received: $result');
-    print('🔵 Success value: ${result['success']}');
-    print('🔵 Success type: ${result['success'].runtimeType}');
+    _logger.d('🔵 API Response received: $result');
+    _logger.d('🔵 Success value: ${result['success']}');
+    _logger.d('🔵 Success type: ${result['success'].runtimeType}');
 
     if (result['success'] == true) {
-      print('✅ SUCCESS - Profile created successfully!');
+      _logger.i('✅ SUCCESS - Profile created successfully!');
       hasProfile = true;
       Get.snackbar("✅ Success", "Profile Created Successfully");
       
       // ✅ Save Free Trial Flag
-      print('💾 Saving free trial flag...');
+      _logger.i('💾 Saving free trial flag...');
       await SessionManager.saveFreeTrialFlag(true);
-      print('💾 Free trial flag saved!');
+      _logger.i('💾 Free trial flag saved!');
 
       if (!mounted) {
-        print('⚠️ Widget not mounted, cannot navigate');
+        _logger.w('⚠️ Widget not mounted, cannot navigate');
         return;
       }
       
-      print('🚀 Navigating to ProfessionalProfileViewPage (Bypassing Subscription)...');
+      _logger.i('🚀 Navigating to ProfessionalProfileViewPage (Bypassing Subscription)...');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => ProfessionalProfileViewPage(profileId: widget.profileId),
         ),
       );
-      print('✅ Navigation completed!');
+      _logger.i('✅ Navigation completed!');
     } else {
-      print('❌ FAILED - Profile creation failed');
-      print('❌ Error message: ${result['message']}');
+      _logger.e('❌ FAILED - Profile creation failed');
+      _logger.e('❌ Error message: ${result['message']}');
       Get.snackbar("❌ Create Failed", result['message']?.toString() ?? 'Error');
     }
 
@@ -592,7 +595,7 @@ Widget titleText(String text) => Padding(
               setState(() => profilePic = originalFile);
             }
           } catch (e) {
-            print("Error compressing image: $e");
+            _logger.e("Error compressing image: $e");
             setState(() => profilePic = originalFile);
           }
         } else {
@@ -600,7 +603,7 @@ Widget titleText(String text) => Padding(
         }
       }
     } catch (e) {
-      print("Error picking image: $e");
+      _logger.e("Error picking image: $e");
       Get.snackbar(
         "Error",
         "Failed to pick image. Please try again.",
@@ -661,6 +664,7 @@ void removeWorkExperience(int index) {
     workExperiences.removeAt(index);
     // Dispose controllers before removing
     for (var controller in workExpControllers[index]) {
+      controller.dispose();
     }
     workExpControllers.removeAt(index);
   });

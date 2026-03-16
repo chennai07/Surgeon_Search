@@ -1,8 +1,6 @@
 import 'package:doc/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:doc/screens/signin_screen.dart';
-import 'package:doc/utils/session_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

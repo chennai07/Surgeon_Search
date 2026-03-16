@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 import 'package:doc/admin/healthcare_profile_screen.dart';
 
 /// HealthcareTab displays the list of healthcare/hospitals for admin management.
@@ -49,7 +51,8 @@ class _HealthcareTabState extends State<HealthcareTab> {
     setState(() => _isLoading = true);
 
     try {
-      final url = Uri.parse('http://13.203.67.154:3000/api/admin/healthcare');
+      final url = Uri.parse('${AppConfig.apiBaseUrl}/admin/healthcare');
+
       final response = await http.get(url).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -342,7 +345,7 @@ class _HealthcareTabState extends State<HealthcareTab> {
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF2E7D32).withOpacity(0.3),
+                          color: const Color(0xFF2E7D32).withValues(alpha: 0.3),
                           blurRadius: 8,
                           offset: const Offset(0, 3),
                         ),
@@ -354,7 +357,7 @@ class _HealthcareTabState extends State<HealthcareTab> {
                           width: 50,
                           height: 50,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -371,7 +374,7 @@ class _HealthcareTabState extends State<HealthcareTab> {
                               'Total Healthcare',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: Colors.white.withOpacity(0.85),
+                                color: Colors.white.withValues(alpha: 0.85),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -534,7 +537,7 @@ class _HealthcareTabState extends State<HealthcareTab> {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: const Color(0xFF2E7D32).withOpacity(0.1),
+              color: const Color(0xFF2E7D32).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -588,7 +591,7 @@ class _HealthcareTabState extends State<HealthcareTab> {
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -611,7 +614,7 @@ class _HealthcareTabState extends State<HealthcareTab> {
                       width: 55,
                       height: 55,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2E7D32).withOpacity(0.1),
+                        color: const Color(0xFF2E7D32).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         image: logo.isNotEmpty
                             ? DecorationImage(
@@ -657,7 +660,7 @@ class _HealthcareTabState extends State<HealthcareTab> {
                                     vertical: 4,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: Colors.green.withOpacity(0.1),
+                                    color: Colors.green.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Row(
@@ -730,7 +733,7 @@ class _HealthcareTabState extends State<HealthcareTab> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E3A5F).withOpacity(0.08),
+                          color: const Color(0xFF1E3A5F).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(

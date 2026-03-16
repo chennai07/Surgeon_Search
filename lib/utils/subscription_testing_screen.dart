@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:doc/utils/session_manager.dart';
-import 'package:doc/Subscription Plan Screen/subscription_planScreen.dart';
-import 'package:doc/Subscription Plan Screen/freetrial _endedscreen.dart';
+import 'package:doc/subscription_plan_screen/subscription_plan_screen.dart';
+import 'package:doc/subscription_plan_screen/freetrial_ended_screen.dart';
 
 /// 🧪 TESTING UTILITY FOR SUBSCRIPTION FLOW
 /// This screen allows you to test the payment flow without waiting 2 months
@@ -229,7 +229,7 @@ class _SubscriptionTestingScreenState extends State<SubscriptionTestingScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
+        color: statusColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: statusColor, width: 2),
       ),
@@ -273,7 +273,7 @@ class _SubscriptionTestingScreenState extends State<SubscriptionTestingScreen> {
       decoration: BoxDecoration(
         color: Colors.blue.shade50,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -334,10 +334,10 @@ class _SubscriptionTestingScreenState extends State<SubscriptionTestingScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.grey.withValues(alpha: 0.05),
               blurRadius: 4,
               offset: const Offset(0, 2),
             ),
@@ -348,7 +348,7 @@ class _SubscriptionTestingScreenState extends State<SubscriptionTestingScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: const Color(0xFF0062FF).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(icon, color: color, size: 28),
@@ -402,7 +402,7 @@ class _SubscriptionTestingScreenState extends State<SubscriptionTestingScreen> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: Colors.blue.withOpacity(0.3),
+              color: Colors.blue.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),

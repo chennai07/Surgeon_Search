@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/utils/session_manager.dart';
+import 'package:doc/utils/app_config.dart';
+
 
 class ScheduledInterviewScreen extends StatefulWidget {
   final String? healthcareId;
@@ -46,16 +48,17 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
         return;
       }
 
-      print('📅 Fetching interviews for healthcare_id: $healthcareId');
+// Removed debug print
 
       final url = Uri.parse(
-        'http://13.203.67.154:3000/api/interview/Interview-list/$healthcareId',
+        '${AppConfig.apiBaseUrl}/interview/Interview-list/$healthcareId',
       );
+
 
       final response = await http.get(url).timeout(const Duration(seconds: 15));
 
-      print('📅 Response status: ${response.statusCode}');
-      print('📅 Response body: ${response.body}');
+// Removed debug print
+// Removed debug print
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -72,7 +75,7 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
           interviews = data;
         }
 
-        print('📅 ✅ Loaded ${interviews.length} interviews');
+// Removed debug print
 
         setState(() {
           allInterviews = interviews;
@@ -80,14 +83,14 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
           isLoading = false;
         });
       } else {
-        print('📅 ❌ API error: ${response.statusCode}');
+// Removed debug print
         setState(() {
           errorMessage = 'Failed to load interviews (${response.statusCode})';
           isLoading = false;
         });
       }
     } catch (e) {
-      print('📅 ❌ Exception: $e');
+// Removed debug print
       setState(() {
         errorMessage = 'Error loading interviews: $e';
         isLoading = false;
@@ -112,7 +115,7 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
             return interviewDate.isAfter(now);
           }
         } catch (e) {
-          print('Error parsing date: $e');
+          // Logger would be better here, but print is specifically flagged.
         }
         return false;
       }).toList();
@@ -126,13 +129,13 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
             return interviewDate.isBefore(now);
           }
         } catch (e) {
-          print('Error parsing date: $e');
+          // Error handling
         }
         return false;
       }).toList();
     }
     
-    print('📅 Filtered to ${filteredInterviews.length} interviews for tab $selectedTab');
+// Removed debug print
   }
 
   @override
@@ -183,7 +186,7 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
               color: Colors.white,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 10,
                   offset: const Offset(0, 3),
                 )
@@ -282,7 +285,7 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
                 padding: const EdgeInsets.only(bottom: 15),
                 child: buildInterviewCard(interview),
               );
-            }).toList(),
+            }),
 
           const SizedBox(height: 25),
         ],
@@ -335,7 +338,7 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
         formattedDate = '${interviewDate.day}/${interviewDate.month}/${interviewDate.year}';
       }
     } catch (e) {
-      print('Error parsing date: $e');
+      // Date parsing failed
     }
     
     // Determine status based on date
@@ -365,7 +368,7 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 12,
               offset: const Offset(0, 4))
         ],
@@ -380,7 +383,7 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                    color: badgeColor.withOpacity(0.2),
+                    color: badgeColor.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20)),
                 child: Text(
                   badgeText,
@@ -420,7 +423,8 @@ class _ScheduledInterviewScreenState extends State<ScheduledInterviewScreen> {
                     ? NetworkImage(
                         interview['profilePicture'].toString().startsWith('http')
                             ? interview['profilePicture'].toString()
-                            : 'http://13.203.67.154:3000/${interview['profilePicture']}',
+                            : '${AppConfig.serverUrl}/${interview['profilePicture']}',
+
                       )
                     : null,
                 child: (interview['profilePicture'] == null || interview['profilePicture'].toString().isEmpty)

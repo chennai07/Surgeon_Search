@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jobapply/utils/colors.dart';
+import 'package:doc/utils/colors.dart';
 
 class JobDetailsScreen extends StatefulWidget {
   final String title;
@@ -107,6 +107,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       appliedDate = null;
     });
 
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text("Application withdrawn successfully."),
@@ -167,7 +168,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
 
     String selectedLocation = "Bangalore, India";
     String? selectedFileName;
-    PlatformFile? selectedFile;
 
     showDialog(
       context: context,
@@ -312,7 +312,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                           );
                       if (result != null) {
                         setState(() {
-                          selectedFile = result.files.first;
                           selectedFileName = result.files.single.name;
                         });
                       }
@@ -378,17 +377,18 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: () async {
-                            await _saveAppliedJob(
-                              widget.title,
-                              widget.org,
-                              widget.location,
-                              selectedFileName,
-                              selectedLocation,
-                              linkedinController.text,
-                              notesController.text,
-                            );
-                            Navigator.pop(ctx);
-                            _showSuccessDialog(context);
+                              await _saveAppliedJob(
+                                widget.title,
+                                widget.org,
+                                widget.location,
+                                selectedFileName,
+                                selectedLocation,
+                                linkedinController.text,
+                                notesController.text,
+                              );
+                              if (!context.mounted) return;
+                              Navigator.pop(ctx);
+                              _showSuccessDialog(context);
                           },
                           icon: const Icon(
                             Iconsax.send_1,

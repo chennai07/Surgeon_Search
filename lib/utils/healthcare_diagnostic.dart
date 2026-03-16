@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:doc/utils/app_config.dart';
+
 
 /// Diagnostic tool to check healthcare_id and profile status
 /// Add this as a temporary button in your app to debug the issue
@@ -46,7 +48,8 @@ class _HealthcareDiagnosticState extends State<HealthcareDiagnostic> {
         buffer.writeln('Checking profile for ID: $healthcareId');
         
         try {
-          final url = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$healthcareId');
+          final url = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$healthcareId');
+
           final response = await http.get(url).timeout(const Duration(seconds: 10));
           
           buffer.writeln('Status Code: ${response.statusCode}');

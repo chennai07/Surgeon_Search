@@ -1,0 +1,11 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.venka.surgeonsearch",
+      "sha256_cert_fingerprints":
+        ["C6:0E:DC:1C:A6:E1:92:51:60:7C:C0:7F:40:0C:07:E3:56:61:75:D2:68:0E:92:9D:4C:E4:53:3B:D6:D8:38:9F"]
+    }
+  }
+]

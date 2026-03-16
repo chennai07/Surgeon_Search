@@ -1,0 +1,25 @@
+Running Gradle task 'bundleRelease'...                          
+Font asset "MaterialIcons-Regular.otf" was tree-shaken, reducing it from 1645184 to 12288 bytes (99.3% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+Font asset "iconsax.ttf" was tree-shaken, reducing it from 1292372 to 15912 bytes (98.8% reduction). Tree-shaking can be disabled by providing the --no-tree-shake-icons flag when building your app.
+C:\Users\venka\OneDrive\Desktop\Surgeon_Search\Surgeon\Surgeon_Search\android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java:29: error: package net.jonhanson.flutter_native_splash does not exist
+      flutterEngine.getPlugins().add(new net.jonhanson.flutter_native_splash.FlutterNativeSplashPlugin());
+                                                                            ^
+1 error
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileReleaseJavaWithJavac'.
+> Compilation failed; see the compiler output below.
+  C:\Users\venka\OneDrive\Desktop\Surgeon_Search\Surgeon\Surgeon_Search\android\app\src\main\java\io\flutter\plugins\GeneratedPluginRegistrant.java:29: error: package net.jonhanson.flutter_native_splash does not exist
+        flutterEngine.getPlugins().add(new net.jonhanson.flutter_native_splash.FlutterNativeSplashPlugin());
+                                                                              ^
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights.
+
+BUILD FAILED in 15s
+Running Gradle task 'bundleRelease'...                             15.6s
+Gradle task bundleRelease failed with exit code 1

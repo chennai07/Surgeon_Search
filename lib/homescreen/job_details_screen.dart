@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:doc/utils/colors.dart';
 import 'package:doc/utils/session_manager.dart';
@@ -162,7 +163,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
 
     try {
       final url = Uri.parse(
-          'http://13.203.67.154:3000/api/healthcare/job-profile/${widget.jobId}');
+          '${AppConfig.apiBaseUrl}/healthcare/job-profile/${widget.jobId}');
+
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -180,7 +182,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
 
         Map<String, dynamic> jobMap = <String, dynamic>{};
         if (data is Map) {
-          jobMap = Map<String, dynamic>.from(data as Map);
+          jobMap = Map<String, dynamic>.from(data);
         }
 
         setState(() {
@@ -243,8 +245,9 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       }
 
       final url =
-          Uri.parse('http://13.203.67.154:3000/api/jobs/apply');
-      print('🔵 Submitting application to $url');
+          Uri.parse('${AppConfig.apiBaseUrl}/jobs/apply');
+
+// Removed debug print
       
       final request = http.MultipartRequest('POST', url);
 
@@ -260,22 +263,22 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
       request.fields['job_id'] = widget.jobId;
       request.fields['isCvFromProfile'] = isCvFromProfile.toString();
 
-      print('🔵 Request Fields: ${request.fields}');
+// Removed debug print
 
       if (cvFile != null && cvFile.path != null && cvFile.path!.isNotEmpty) {
-        print('🔵 Attaching CV: ${cvFile.path}');
+// Removed debug print
         request.files.add(
           await http.MultipartFile.fromPath('cv', cvFile.path!),
         );
       } else {
-        print('🟠 No CV file selected');
+// Removed debug print
       }
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
 
-      print('🔵 Response Status: ${response.statusCode}');
-      print('🔵 Response Body: ${response.body}');
+// Removed debug print
+// Removed debug print
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return true;
@@ -299,9 +302,9 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
         }
         return false;
       }
-    } catch (e, stack) {
-      print('🔴 Error submitting application: $e');
-      print(stack);
+    } catch (e) {
+// Removed debug print
+// Removed debug print
       if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error submitting application: $e')),
@@ -343,7 +346,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     SessionManager.getProfileId().then((pid) async {
       if (pid != null) {
         try {
-           final url = Uri.parse('http://13.203.67.154:3000/api/sugeon/profile-info/$pid');
+           final url = Uri.parse('${AppConfig.apiBaseUrl}/sugeon/profile-info/$pid');
+
            final response = await http.get(url);
            if (response.statusCode == 200) {
              final data = jsonDecode(response.body);
@@ -555,21 +559,22 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                     onPressed: isFetchingCv
                                         ? null
                                         : () async {
-                                            print('🔴 Fetch from Profile clicked');
+// Removed debug print
                                             setState(() {
                                               isFetchingCv = true;
                                             });
                                             try {
                                               final pid = await SessionManager.getProfileId();
-                                              print('🔴 Profile ID from Session: $pid');
+// Removed debug print
                                               if (pid == null) {
                                                 throw 'Profile ID not found';
                                               }
                                               final url = Uri.parse(
-                                                  'http://13.203.67.154:3000/api/sugeon/profile-info/$pid');
+                                                  '${AppConfig.apiBaseUrl}/sugeon/profile-info/$pid');
+
                                               final response = await http.get(url);
-                                              print('🔴 Profile Info Response Status: ${response.statusCode}');
-                                              print('🔴 Profile Info Response Body: ${response.body}');
+// Removed debug print
+// Removed debug print
                                               
                                               if (response.statusCode == 200) {
                                                 final data = jsonDecode(response.body);
@@ -589,8 +594,8 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                                   }
                                                 }
                                                 
-                                                print('🔴 Parsed Profile Data: $p');
-                                                print('🔴 CV URL: ${p['cv']}');
+// Removed debug print
+// Removed debug print
 
                                                 final cvUrl = p['cv'];
                                                 if (cvUrl != null && cvUrl.toString().isNotEmpty) {
@@ -763,10 +768,12 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                               );
 
                               if (ok) {
-                                if (Navigator.of(ctx).canPop()) {
+                                if (ctx.mounted && Navigator.of(ctx).canPop()) {
                                   Navigator.of(ctx).pop();
                                 }
-                                _showSuccessDialog(context);
+                                if (context.mounted) {
+                                  _showSuccessDialog(context);
+                                }
                               }
                             },
                             icon: const Icon(
@@ -824,8 +831,6 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
     final rawSalary = (_job?['salaryRange'] ?? '').toString();
     final String salaryPillDisplay =
         rawSalary.isNotEmpty ? '₹ $rawSalary LPA' : '';
-    final String salaryChipDisplay =
-        rawSalary.isNotEmpty ? '₹ $rawSalary' : '';
 
     final rawDeadline = ((_job?['deadline'] ??
                 _job?['applicationDeadline'] ??
@@ -995,7 +1000,7 @@ class _JobDetailsScreenState extends State<JobDetailsScreen> {
                                 Container(
                                   width: 1,
                                   height: 45,
-                                  color: Colors.white.withOpacity(0.4),
+                                  color: Colors.white.withValues(alpha: 0.4),
                                 ),
                                 Expanded(
                                   child: Column(

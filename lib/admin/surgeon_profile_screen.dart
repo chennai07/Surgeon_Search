@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 /// SurgeonProfileScreen displays detailed information about a surgeon.
@@ -37,7 +39,9 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
 
     try {
       final url = Uri.parse(
-          'http://13.203.67.154:3000/api/sugeon/profile-info/${widget.profileId}');
+        '${AppConfig.apiBaseUrl}/surgeon/profile-info/${widget.profileId}',
+
+      );
       final response = await http.get(url).timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -68,12 +72,13 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
 
   Future<void> _openUrl(String url) async {
     if (url.isEmpty) return;
-    
+
     String fullUrl = url;
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      fullUrl = 'http://13.203.67.154:3000/$url';
+      fullUrl = '${AppConfig.serverUrl}/$url';
+
     }
-    
+
     try {
       final uri = Uri.parse(fullUrl);
       if (await canLaunchUrl(uri)) {
@@ -100,7 +105,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -116,7 +121,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
                 icon: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
@@ -128,9 +133,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
               ),
               const SizedBox(width: 8),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              background: _buildProfileHeader(),
-            ),
+            flexibleSpace: FlexibleSpaceBar(background: _buildProfileHeader()),
           ),
           // Content
           SliverToBoxAdapter(
@@ -144,8 +147,8 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
                     ),
                   )
                 : _errorMessage != null && _profileData.isEmpty
-                    ? _buildErrorState()
-                    : _buildProfileDetails(),
+                ? _buildErrorState()
+                : _buildProfileDetails(),
           ),
         ],
       ),
@@ -153,7 +156,8 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
   }
 
   Widget _buildProfileHeader() {
-    final name = _profileData['fullName'] ?? _profileData['name'] ?? 'Loading...';
+    final name =
+        _profileData['fullName'] ?? _profileData['name'] ?? 'Loading...';
     final degree = _profileData['degree'] ?? '';
     final speciality = _profileData['speciality'] ?? '';
     final subSpeciality = _profileData['subSpeciality'] ?? '';
@@ -165,11 +169,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF1E3A5F),
-            Color(0xFF2E5077),
-            Color(0xFF3D6591),
-          ],
+          colors: [Color(0xFF1E3A5F), Color(0xFF2E5077), Color(0xFF3D6591)],
         ),
       ),
       child: SafeArea(
@@ -183,14 +183,14 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
               height: 110,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.white.withValues(alpha: 0.5),
                   width: 3,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
+                    color: Colors.black.withValues(alpha: 0.2),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
@@ -204,11 +204,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
                     : null,
               ),
               child: profilePicture.isEmpty
-                  ? const Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 50,
-                    )
+                  ? const Icon(Icons.person, color: Colors.white, size: 50)
                   : null,
             ),
             const SizedBox(height: 16),
@@ -228,7 +224,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
                 degree,
                 style: TextStyle(
                   fontSize: 15,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -241,7 +237,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
                     : speciality,
                 style: TextStyle(
                   fontSize: 13,
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -249,16 +245,19 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
             if (experience != null) ...[
               const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   '$experience years experience',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.white.withOpacity(0.95),
+                    color: Colors.white.withValues(alpha: 0.95),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -279,19 +278,12 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 60,
-              color: Colors.red.shade300,
-            ),
+            Icon(Icons.error_outline, size: 60, color: Colors.red.shade300),
             const SizedBox(height: 16),
             Text(
               _errorMessage ?? 'An error occurred',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade700,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
             ),
             const SizedBox(height: 20),
             ElevatedButton.icon(
@@ -359,7 +351,11 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
               if (phone.toString().isNotEmpty)
                 _buildInfoRow(Icons.phone_outlined, 'Phone', phone.toString()),
               if (locationText.isNotEmpty)
-                _buildInfoRow(Icons.location_on_outlined, 'Location', locationText),
+                _buildInfoRow(
+                  Icons.location_on_outlined,
+                  'Location',
+                  locationText,
+                ),
               if (state.isNotEmpty && location.isEmpty)
                 _buildInfoRow(Icons.map_outlined, 'State', state),
               if (district.isNotEmpty && location.isEmpty)
@@ -375,9 +371,17 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
             iconColor: const Color(0xFF2E7D32),
             children: [
               if (experience != null)
-                _buildInfoRow(Icons.timeline, 'Years of Experience', '$experience years'),
+                _buildInfoRow(
+                  Icons.timeline,
+                  'Years of Experience',
+                  '$experience years',
+                ),
               if (surgicalExperience.isNotEmpty)
-                _buildInfoRow(Icons.medical_services, 'Surgical Cases', surgicalExperience),
+                _buildInfoRow(
+                  Icons.medical_services,
+                  'Surgical Cases',
+                  surgicalExperience,
+                ),
               if (portfolioLinks.isNotEmpty)
                 _buildInfoRow(Icons.link, 'Portfolio', portfolioLinks),
             ],
@@ -412,14 +416,17 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
               iconColor: const Color(0xFFE65100),
               children: workExperience.map<Widget>((work) {
                 if (work is Map) {
-                  final designation = work['designation'] ?? work['title'] ?? '';
-                  final organization = work['healthcareOrganization'] ?? 
-                                       work['company'] ?? 
-                                       work['hospital'] ?? '';
+                  final designation =
+                      work['designation'] ?? work['title'] ?? '';
+                  final organization =
+                      work['healthcareOrganization'] ??
+                      work['company'] ??
+                      work['hospital'] ??
+                      '';
                   final from = work['from'] ?? '';
                   final to = work['to'] ?? 'Present';
                   final workLocation = work['location'] ?? '';
-                  
+
                   return Container(
                     margin: const EdgeInsets.only(bottom: 16),
                     padding: const EdgeInsets.all(14),
@@ -511,7 +518,9 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
           ],
 
           // Documents Card
-          if (cv.isNotEmpty || highestDegree.isNotEmpty || uploadLogBook.isNotEmpty) ...[
+          if (cv.isNotEmpty ||
+              highestDegree.isNotEmpty ||
+              uploadLogBook.isNotEmpty) ...[
             _buildSectionCard(
               title: 'Documents',
               icon: Icons.folder_outlined,
@@ -547,7 +556,11 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
             iconColor: Colors.grey.shade600,
             children: [
               if (_profileData['createdAt'] != null)
-                _buildInfoRow(Icons.calendar_today_outlined, 'Registered On', _formatDate(_profileData['createdAt'])),
+                _buildInfoRow(
+                  Icons.calendar_today_outlined,
+                  'Registered On',
+                  _formatDate(_profileData['createdAt']),
+                ),
               _buildInfoRow(
                 Icons.verified_user_outlined,
                 'Terms Accepted',
@@ -586,19 +599,15 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF1976D2).withOpacity(0.08),
+              color: const Color(0xFF1976D2).withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: const Color(0xFF1976D2).withOpacity(0.2),
+                color: const Color(0xFF1976D2).withValues(alpha: 0.2),
               ),
             ),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  color: const Color(0xFF1976D2),
-                  size: 22,
-                ),
+                Icon(icon, color: const Color(0xFF1976D2), size: 22),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -629,7 +638,9 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
     required Color iconColor,
     required List<Widget> children,
   }) {
-    final filteredChildren = children.where((w) => w is! SizedBox || (w as SizedBox).height != 0).toList();
+    final filteredChildren = children
+        .where((w) => w is! SizedBox || w.height != 0)
+        .toList();
 
     if (filteredChildren.isEmpty) {
       return const SizedBox.shrink();
@@ -643,7 +654,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -657,14 +668,10 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.1),
+                  color: iconColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  icon,
-                  color: iconColor,
-                  size: 20,
-                ),
+                child: Icon(icon, color: iconColor, size: 20),
               ),
               const SizedBox(width: 12),
               Text(
@@ -692,11 +699,7 @@ class _SurgeonProfileScreenState extends State<SurgeonProfileScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            icon,
-            size: 20,
-            color: Colors.grey.shade500,
-          ),
+          Icon(icon, size: 20, color: Colors.grey.shade500),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

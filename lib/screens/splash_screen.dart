@@ -5,9 +5,10 @@ import 'package:doc/utils/session_manager.dart';
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/healthcare/hospial_form.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
-import 'package:doc/healthcare/hospital_profile.dart';
-import 'package:doc/Navbar.dart';
+import 'package:doc/navbar.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -42,7 +43,8 @@ class _SplashScreenState extends State<SplashScreen> {
       if (role.contains('hospital') || role.contains('health') || role.contains('org')) {
         final hid = (await SessionManager.getHealthcareId()) ?? profileId;
         try {
-          final url = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$hid');
+          final url = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$hid');
+
           final resp = await http.get(url).timeout(const Duration(seconds: 12));
           if (!mounted) return;
           if (resp.statusCode == 200) {
@@ -68,6 +70,7 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       } else if (role.contains('surgeon') || role.contains('doctor')) {
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -76,6 +79,7 @@ class _SplashScreenState extends State<SplashScreen> {
         );
       } else {
         // Default to surgeon flow if role unknown
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

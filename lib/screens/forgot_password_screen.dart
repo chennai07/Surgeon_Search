@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:doc/utils/app_config.dart';
+
 import 'package:iconsax/iconsax.dart';
 import 'package:doc/screens/forgot_password_otp_screen.dart';
 
@@ -36,7 +38,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (_isLoading) return;
     setState(() => _isLoading = true);
 
-    final url = Uri.parse('http://13.203.67.154:3000/api/password/forgot');
+    final url = Uri.parse('${AppConfig.apiBaseUrl}/password/forgot');
+
 
     try {
       final response = await http.post(
@@ -148,7 +151,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       width: 100,
                       height: 100,
                       decoration: BoxDecoration(
-                        color: Colors.blueAccent.withOpacity(0.1),
+                        color: Colors.blueAccent.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -255,7 +258,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             // Loading Overlay
             if (_isLoading)
               Container(
-                color: Colors.black.withOpacity(0.4),
+                color: Colors.black.withValues(alpha: 0.4),
                 child: const Center(
                   child: CircularProgressIndicator(color: Colors.blueAccent),
                 ),
