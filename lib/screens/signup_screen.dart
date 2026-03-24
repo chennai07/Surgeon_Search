@@ -1,9 +1,9 @@
 // ignore_for_file: unused_import
 
 import 'dart:convert';
-import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+
 import 'package:http/http.dart' as http;
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/screens/otp_screen.dart';
@@ -28,28 +28,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   
-  // ✅ Image Picker State
-  File? _image;
-  final ImagePicker _picker = ImagePicker();
 
-  Future<void> _pickImage() async {
-    try {
-      final XFile? pickedFile = await _picker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1000,
-        maxHeight: 1000,
-        imageQuality: 85,
-      );
-
-      if (pickedFile != null) {
-        setState(() {
-          _image = File(pickedFile.path);
-        });
-      }
-    } catch (e) {
-      debugPrint("Error picking image: $e");
-    }
-  }
 
   // ✅ Two roles only
   final List<String> roles = ["Healthcare Organizations", "Surgeon"];
@@ -71,29 +50,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     // ✅ Use MultipartRequest if image is selected, otherwise normal POST
     try {
-      var request = http.MultipartRequest('POST', Uri.parse(apiUrl));
-
-      // Add fields
-      request.fields["fullname"] = nameController.text.trim();
-      request.fields["name"] = nameController.text.trim();
-      request.fields["email"] = emailController.text.trim();
-      request.fields["mobilenumber"] = phoneController.text.trim();
-      request.fields["mobile"] = phoneController.text.trim();
-      request.fields["password"] = passwordController.text.trim();
-      request.fields["type"] = selectedRole!;
-
-      // Add image if selected
-      if (_image != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'profilePicture',
-            _image!.path,
-          ),
-        );
-      }
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "fullname": nameController.text.trim(),
+          "name": nameController.text.trim(),
+          "email": emailController.text.trim(),
+          "mobilenumber": phoneController.text.trim(),
+          "mobile": phoneController.text.trim(),
+          "password": passwordController.text.trim(),
+          "type": selectedRole!,
+        }),
+      );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final responseData = jsonDecode(response.body);
@@ -187,47 +156,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🔹 Profile Image Picker
-              Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.grey[200],
-                      backgroundImage: _image != null ? FileImage(_image!) : null,
-                      child: _image == null
-                          ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                          : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: GestureDetector(
-                        onTap: _pickImage,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.blue,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              const Center(
-                child: Text(
-                  "Choose Profile Picture (Optional)",
-                  style: TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ),
               const SizedBox(height: 25),
               // 🔹 Dropdown (Role Selector)
               Container(
