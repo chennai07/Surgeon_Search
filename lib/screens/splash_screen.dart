@@ -5,9 +5,13 @@ import 'package:doc/utils/session_manager.dart';
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/healthcare/hospial_form.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
+import 'package:doc/profileprofile/surgeon_profile.dart';
 import 'package:doc/navbar.dart';
 import 'package:http/http.dart' as http;
 import 'package:doc/utils/app_config.dart';
+import 'package:doc/controllers/auth_controller.dart';
+import 'package:doc/model/api_service.dart';
+import 'package:get/get.dart';
 
 
 class SplashScreen extends StatefulWidget {
@@ -29,15 +33,15 @@ class _SplashScreenState extends State<SplashScreen> {
     // Give a short delay for splash effect
     await Future.delayed(const Duration(seconds: 2));
 
-    // Then check login status
-    final isLoggedIn = await SessionManager.isLoggedIn();
+    // Then check login status using AuthController
+    final auth = AuthController.to;
+    await auth.restoreSession();
 
     if (!mounted) return;
 
-    if (isLoggedIn) {
-      final roleRaw = await SessionManager.getRole();
-      final role = (roleRaw ?? '').toLowerCase().trim();
-      final profileId = (await SessionManager.getProfileId()) ?? (await SessionManager.getUserId()) ?? '';
+    if (auth.isLoggedIn.value) {
+      final role = auth.userRole.value.toLowerCase().trim();
+      final profileId = auth.profileId.value;
       debugPrint('✅ User already logged in. Role: $role');
 
       if (role.contains('hospital') || role.contains('health') || role.contains('org')) {
@@ -70,13 +74,46 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       } else if (role.contains('surgeon') || role.contains('doctor')) {
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => SurgeonForm(profileId: profileId, existingData: const {}),
-          ),
-        );
+        try {
+          final res = await ApiService.fetchProfileInfo(profileId);
+          if (!mounted) return;
+          
+          bool hasValidProfile = false;
+          if (res['success'] == true) {
+            final body = res['data'];
+            final data = body is Map && body['data'] != null ? body['data'] : body;
+            final p = data is Map && data['profile'] != null ? data['profile'] : data;
+            
+            hasValidProfile = p is Map &&
+                (((p['fullName'] ?? p['fullname'] ?? '').toString().trim().isNotEmpty == true) ||
+                (p['email']?.toString().trim().isNotEmpty == true) ||
+                (p['phoneNumber']?.toString().trim().isNotEmpty == true));
+          }
+
+          if (hasValidProfile) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProfessionalProfileViewPage(profileId: profileId),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SurgeonForm(profileId: profileId, existingData: const {}),
+              ),
+            );
+          }
+        } catch (_) {
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SurgeonForm(profileId: profileId, existingData: const {}),
+            ),
+          );
+        }
       } else {
         // Default to surgeon flow if role unknown
         if (!mounted) return;

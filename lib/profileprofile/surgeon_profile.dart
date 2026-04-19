@@ -11,6 +11,8 @@ import 'package:doc/homescreen/search_job_screen.dart';
 import 'package:doc/homescreen/applied_jobs.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:doc/controllers/auth_controller.dart';
+import 'package:get/get.dart';
 
 import 'package:doc/utils/subscription_guard.dart';
 import 'package:doc/utils/app_config.dart';
@@ -151,7 +153,7 @@ class _ProfessionalProfileViewPageState
   }
 
   Future<void> _logout() async {
-    await SessionManager.clearAll();
+    await AuthController.to.logout();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
@@ -288,7 +290,7 @@ class _ProfessionalProfileViewPageState
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         // Clear session and navigate to login
-        await SessionManager.clearAll();
+        await AuthController.to.logout();
         
         if (!mounted) return;
         

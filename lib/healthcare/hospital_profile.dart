@@ -9,6 +9,8 @@ import 'package:doc/utils/app_config.dart';
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:doc/healthcare/hospial_form.dart';
+import 'package:doc/controllers/auth_controller.dart';
+import 'package:get/get.dart';
 
 class HospitalProfile extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -84,6 +86,10 @@ class _HospitalProfileState extends State<HospitalProfile> {
       _logger.e('🏥 Error fetching profile: $e');
       if (mounted) setState(() => _isLoadingProfile = false);
     }
+  }
+
+  Future<void> _logout() async {
+    await AuthController.to.logout();
   }
 
   Future<void> _fetchJobs() async {
@@ -320,7 +326,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         // Clear session and navigate to login
-        await SessionManager.clearAll();
+        await AuthController.to.logout();
         
         if (!mounted) return;
         
@@ -410,7 +416,7 @@ class _HospitalProfileState extends State<HospitalProfile> {
           TextButton(
             onPressed: () async {
               final navigator = Navigator.of(context);
-              await SessionManager.clearAll();
+              await AuthController.to.logout();
               if (!mounted) return;
               navigator.pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const LoginScreen()),

@@ -80,10 +80,19 @@ class SessionManager {
     final prefs = await SharedPreferences.getInstance();
     final userId = prefs.getString(_keyUserId);
     final token = prefs.getString(_keyToken);
-    return userId != null &&
+    
+    final bool hasValidSession = userId != null &&
         userId.isNotEmpty &&
         token != null &&
-        token.isNotEmpty;
+        token.isNotEmpty &&
+        token != 'null' && // Handle stringified nulls
+        token != '';
+
+    // Log the check for debugging state issues
+    // ignore: avoid_print
+    print('📦 Session Check - LoggedIn: $hasValidSession (ID: $userId, HasToken: ${token != null && token.isNotEmpty})');
+    
+    return hasValidSession;
   }
 
   /// 🚪 Log out and clear all stored data

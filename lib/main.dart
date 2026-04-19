@@ -1,9 +1,14 @@
 import 'package:doc/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:doc/controllers/auth_controller.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Global Auth State
+  Get.put(AuthController());
+  
   runApp(const MyApp());
 }
 

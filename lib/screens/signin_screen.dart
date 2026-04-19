@@ -15,6 +15,7 @@ import 'package:doc/screens/signup_screen.dart';
 import 'package:doc/screens/forgot_password_screen.dart';
 import 'package:doc/admin/admin_navbar.dart';
 import 'package:doc/utils/app_config.dart';
+import 'package:doc/controllers/auth_controller.dart';
 
 
 class LoginScreen extends StatefulWidget {
@@ -216,6 +217,9 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         await SessionManager.saveHealthProfileFlag(healthProfile);
         await SessionManager.saveUserEmail(email);
+
+        // Update Global Auth State
+        AuthController.to.loginSuccess(role: role ?? '', id: profileId);
 
         // Save phone number if available
         if (userData is Map) {

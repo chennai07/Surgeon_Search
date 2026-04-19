@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:doc/admin/surgeon_tab.dart';
 import 'package:doc/admin/healthcare_tab.dart';
 import 'package:doc/admin/jobs_tab.dart';
+import 'package:doc/controllers/auth_controller.dart';
+import 'package:doc/screens/signin_screen.dart';
+import 'package:get/get.dart';
 
 /// AdminNavbar is the main screen for Admin users.
 /// It provides bottom navigation with three tabs: Surgeon, Healthcare, and Jobs.
@@ -107,7 +110,18 @@ class _AdminNavbarState extends State<AdminNavbar> {
                       ],
                     ),
                   ),
-
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: () async {
+                      await AuthController.to.logout();
+                      Get.offAll(() => const LoginScreen());
+                    },
+                    icon: const Icon(
+                      Icons.logout,
+                      color: Colors.white,
+                    ),
+                    tooltip: 'Logout',
+                  ),
                 ],
               ),
             ),
