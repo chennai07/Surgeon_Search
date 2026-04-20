@@ -45,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final List<String> roles = ["Surgeon", "Healthcare Organizations"];
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    serverClientId: '692027562141-g1i83eh2gdq3kkck0qo8b6bemerj6vfn.apps.googleusercontent.com',
   );
 
   String? _extractProfileId(dynamic source) {

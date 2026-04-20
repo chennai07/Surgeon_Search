@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "692027562141-ht0biunqdb7op6mhhv3l72l8lm03e2ps.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.venka.surgeonsearch",
+            "certificate_hash": "ad22d9b3bc4a3f802177845cd8dd766face08f54"
+          }
+        },
+        {
           "client_id": "692027562141-g1i83eh2gdq3kkck0qo8b6bemerj6vfn.apps.googleusercontent.com",
           "client_type": 3
         }
