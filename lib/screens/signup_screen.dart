@@ -234,6 +234,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
     
     try {
+      // Force account selection by signing out first
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+      
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) return;
 
