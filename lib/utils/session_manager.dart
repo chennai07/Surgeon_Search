@@ -1,4 +1,4 @@
-// lib/utils/session_manager.dart
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// ---------------------------------------------------------
@@ -16,6 +16,7 @@ class SessionManager {
   static const _keyHealthcareId = 'healthcare_id';
   static const _keyHealthProfileFlag = 'health_profile_flag';
   static const _keyFreeTrialFlag = 'free_trial_flag';
+  static const _keyAdminData = 'admin_data';
 
   /// ✅ Save the logged-in user's ID
   static Future<void> saveUserId(String userId) async {
@@ -104,6 +105,8 @@ class SessionManager {
     await prefs.remove(_keyLoginId);
     await prefs.remove(_keyRole);
     await prefs.remove(_keyHealthProfileFlag);
+    await prefs.remove(_keySurgeonProfileFlag);
+    await prefs.remove(_keyAdminData);
   }
 
   static Future<void> saveHealthProfileFlag(bool value) async {
@@ -116,6 +119,18 @@ class SessionManager {
     return prefs.getBool(_keyHealthProfileFlag);
   }
 
+  static const _keySurgeonProfileFlag = 'surgeon_profile_flag';
+
+  static Future<void> saveSurgeonProfileFlag(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_keySurgeonProfileFlag, value);
+  }
+
+  static Future<bool?> getSurgeonProfileFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_keySurgeonProfileFlag);
+  }
+
   static Future<void> saveFreeTrialFlag(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyFreeTrialFlag, value);
@@ -124,6 +139,28 @@ class SessionManager {
   static Future<bool?> getFreeTrialFlag() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyFreeTrialFlag);
+  }
+
+  static Future<void> saveAdminData(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      final jsonStr = jsonEncode(data);
+      await prefs.setString(_keyAdminData, jsonStr);
+    } catch (e) {
+      print('Error saving admin data: $e');
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getAdminData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString(_keyAdminData);
+    if (jsonStr == null || jsonStr.isEmpty) return null;
+    try {
+      return jsonDecode(jsonStr) as Map<String, dynamic>;
+    } catch (e) {
+      print('Error parsing admin data: $e');
+      return null;
+    }
   }
 
   static Future<void> saveRole(String role) async {

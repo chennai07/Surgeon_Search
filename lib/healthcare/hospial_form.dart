@@ -15,6 +15,7 @@ import 'package:doc/utils/app_config.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 
 import 'package:doc/model/indian_states_districts.dart';
+import 'package:doc/screens/signin_screen.dart';
 
 class HospitalForm extends StatefulWidget {
   final String healthcareId;
@@ -777,6 +778,19 @@ class _HospitalFormState extends State<HospitalForm> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => LoginScreen()),
+              );
+            }
+          },
+        ),
         title: Text.rich(
           TextSpan(
             text: "Hospital ",

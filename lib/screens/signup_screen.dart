@@ -8,10 +8,26 @@ import 'package:http/http.dart' as http;
 import 'package:doc/screens/signin_screen.dart';
 import 'package:doc/screens/otp_screen.dart';
 import 'package:doc/utils/app_config.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:doc/controllers/auth_controller.dart';
+import 'package:doc/utils/session_manager.dart';
+import 'package:uuid/uuid.dart';
+import 'package:doc/profileprofile/surgeon_form.dart';
+import 'dart:async';
+import 'dart:io';
 
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
+
+  static const String _googleSvg = '''
+<svg xmlns="http://www.w3.org/2000/svg" width="2443" height="2500" preserveAspectRatio="xMidYMid" viewBox="0 0 256 262">
+  <path fill="#4285F4" d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"></path>
+  <path fill="#34A853" d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1"></path>
+  <path fill="#FBBC05" d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782"></path>
+  <path fill="#EB4335" d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"></path>
+</svg>''';
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
@@ -22,6 +38,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   String? selectedRole;
   bool _obscurePassword = true;
   bool isLoading = false;
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId: '692027562141-g1i83eh2gdq3kkck0qo8b6bemerj6vfn.apps.googleusercontent.com',
+  );
 
   final TextEditingController nameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
@@ -117,6 +137,190 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (mounted) setState(() => isLoading = false);
     }
   }
+
+  String? _extractProfileId(dynamic source) {
+    if (source == null) return null;
+
+    String? normalize(dynamic value) {
+      if (value == null) return null;
+      if (value is Map && value.containsKey(r'$oid')) {
+        final oidValue = value[r'$oid'];
+        final oidString = oidValue?.toString().trim();
+        if (oidString != null && oidString.isNotEmpty) return oidString;
+      }
+      final stringValue = value.toString().trim();
+      return stringValue.isEmpty ? null : stringValue;
+    }
+
+    final keysToCheck = const {
+      'profile_id',
+      'profileId',
+      'profileID',
+      '_id',
+      'id',
+      'user_id',
+      'userId',
+      'doctor_id',
+      'doctorId',
+    };
+
+    if (source is Map) {
+      for (final entry in source.entries) {
+        if (keysToCheck.contains(entry.key)) {
+          final normalized = normalize(entry.value);
+          if (normalized != null) return normalized;
+        }
+
+        if (entry.value is Map || entry.value is Iterable) {
+          final nested = _extractProfileId(entry.value);
+          if (nested != null) return nested;
+        } else {
+          final normalized = normalize(entry.value);
+          if (normalized != null && keysToCheck.any(entry.key.toLowerCase().contains)) {
+            return normalized;
+          }
+        }
+      }
+    } else if (source is Iterable) {
+      for (final item in source) {
+        final nested = _extractProfileId(item);
+        if (nested != null) return nested;
+      }
+    } else {
+      final normalized = normalize(source);
+      if (normalized != null) return normalized;
+    }
+
+    return null;
+  }
+
+  Future<http.Response> _postWithRetry(
+    Uri url, {
+    Map<String, String>? headers,
+    Object? body,
+    int attempts = 3,
+  }) async {
+    final delays = <Duration>[
+      Duration.zero,
+      const Duration(seconds: 2),
+      const Duration(seconds: 5),
+    ];
+
+    for (var i = 0; i < attempts; i++) {
+      try {
+        return await http
+            .post(url, headers: headers, body: body)
+            .timeout(const Duration(seconds: 30));
+      } on TimeoutException catch (_) {
+        if (i == attempts - 1) rethrow;
+      } on SocketException catch (_) {
+        if (i == attempts - 1) rethrow;
+      } on HandshakeException catch (_) {
+        if (i == attempts - 1) rethrow;
+      }
+      await Future.delayed(delays[i]);
+    }
+    throw Exception('Request failed after retries');
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    if (isLoading) return;
+    
+    if (selectedRole == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please select a role first"))
+      );
+      return;
+    }
+    
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      setState(() => isLoading = true);
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      final url = Uri.parse('${AppConfig.apiBaseUrl}/google-signin');
+      final response = await _postWithRetry(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': googleUser.email,
+          'fullname': googleUser.displayName,
+          'googleId': googleUser.id,
+          'idToken': googleAuth.idToken,
+          'type': selectedRole,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final root = jsonDecode(response.body);
+        final data = root is Map && root['data'] != null ? root['data'] : root;
+        
+        final token = (data is Map) ? data['token'] : null;
+        final userData = (data is Map)
+            ? (data['user'] ?? data['profile'] ?? data)
+            : data;
+
+        String? role = (userData is Map)
+            ? (userData['type'] ?? userData['role'] ?? (data is Map ? (data['type'] ?? data['role']) : null))?.toString()
+            : null;
+
+        bool healthProfile = false;
+        if (userData is Map) {
+          final rawHp = userData['healthprofile'] ?? userData['healthProfile'];
+          if (rawHp is bool) {
+            healthProfile = rawHp;
+          }
+        }
+
+        final extractedProfileId = _extractProfileId(userData) ??
+            (data is Map ? _extractProfileId(data['profile']) : null) ??
+            _extractProfileId(data);
+            
+        String profileId = (extractedProfileId ??
+                (userData is Map ? userData['_id']?.toString() : null) ??
+                '')
+            .trim();
+        if (profileId.isEmpty) profileId = const Uuid().v4();
+
+        await SessionManager.saveUserId(profileId);
+        await SessionManager.saveProfileId(profileId);
+        await SessionManager.saveToken(token ?? '');
+        if (role != null && role.isNotEmpty) {
+          await SessionManager.saveRole(role);
+        }
+        await SessionManager.saveHealthProfileFlag(healthProfile);
+        await SessionManager.saveUserEmail(googleUser.email);
+        await SessionManager.saveUserName(googleUser.displayName ?? '');
+
+        AuthController.to.loginSuccess(role: role ?? 'surgeon', id: profileId);
+
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Google Sign-In Successful!'))
+        );
+
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SurgeonForm(profileId: profileId, existingData: const {})));
+
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('❌ Google Sign-In failed on server'))
+        );
+      }
+    } catch (error) {
+      debugPrint('Google Sign-In Error: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('⚠️ Google Sign-In Error: $error'))
+      );
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
 
   /// ✅ UI DESIGN
   @override
@@ -304,6 +508,34 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                ),
+              ),
+              const SizedBox(height: 15),
+
+              // 🔘 Google Sign In Button
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    side: const BorderSide(color: Colors.black12),
+                  ),
+                  onPressed: isLoading ? null : _handleGoogleSignIn,
+                  icon: SvgPicture.string(
+                    SignUpScreen._googleSvg,
+                    height: 22,
+                  ),
+                  label: const Text(
+                    'Continue with Google',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

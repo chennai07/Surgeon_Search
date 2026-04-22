@@ -16,6 +16,7 @@ import 'package:doc/model/indian_states_districts.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:doc/utils/app_config.dart';
+import 'package:doc/screens/signin_screen.dart';
 
  
 const Map<String, List<String>> surgicalSpecialities = {
@@ -839,6 +840,19 @@ Widget build(BuildContext context) {
     ),
     backgroundColor: Colors.white,
     appBar: AppBar(
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back, color: Colors.black),
+        onPressed: () {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => LoginScreen()),
+            );
+          }
+        },
+      ),
       title: const Text("Professional profile",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 18)),
       centerTitle: false,

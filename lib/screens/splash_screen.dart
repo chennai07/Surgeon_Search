@@ -12,6 +12,7 @@ import 'package:doc/utils/app_config.dart';
 import 'package:doc/controllers/auth_controller.dart';
 import 'package:doc/model/api_service.dart';
 import 'package:get/get.dart';
+import 'package:doc/admin/admin_navbar.dart';
 
 
 class SplashScreen extends StatefulWidget {
@@ -44,7 +45,14 @@ class _SplashScreenState extends State<SplashScreen> {
       final profileId = auth.profileId.value;
       debugPrint('✅ User already logged in. Role: $role');
 
-      if (role.contains('hospital') || role.contains('health') || role.contains('org')) {
+      if (role.contains('admin')) {
+        final adminData = await SessionManager.getAdminData() ?? {};
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => AdminNavbar(adminData: adminData)),
+        );
+      } else if (role.contains('hospital') || role.contains('health') || role.contains('org')) {
         final hid = (await SessionManager.getHealthcareId()) ?? profileId;
         try {
           final url = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$hid');
@@ -74,6 +82,19 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       } else if (role.contains('surgeon') || role.contains('doctor')) {
+        final surgeonProfile = await SessionManager.getSurgeonProfileFlag() ?? false;
+        
+        if (surgeonProfile) {
+          if (!mounted) return;
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ProfessionalProfileViewPage(profileId: profileId),
+            ),
+          );
+          return;
+        }
+
         try {
           final res = await ApiService.fetchProfileInfo(profileId);
           if (!mounted) return;
