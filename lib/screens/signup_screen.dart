@@ -14,6 +14,10 @@ import 'package:doc/controllers/auth_controller.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
+import 'package:doc/healthcare/hospial_form.dart';
+import 'package:doc/navbar.dart';
+import 'package:doc/profileprofile/surgeon_profile.dart';
+import 'package:doc/model/api_service.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -273,10 +277,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
             : null;
 
         bool healthProfile = false;
+        bool surgeonProfile = false;
         if (userData is Map) {
           final rawHp = userData['healthprofile'] ?? userData['healthProfile'];
           if (rawHp is bool) {
             healthProfile = rawHp;
+          } else if (rawHp is String) {
+            healthProfile = rawHp.toLowerCase() == 'true';
+          }
+          final rawSp = userData['surgeonprofile'] ?? userData['surgeonProfile'];
+          if (rawSp is bool) {
+            surgeonProfile = rawSp;
+          } else if (rawSp is String) {
+            surgeonProfile = rawSp.toLowerCase() == 'true';
           }
         }
 
@@ -297,17 +310,76 @@ class _SignUpScreenState extends State<SignUpScreen> {
           await SessionManager.saveRole(role);
         }
         await SessionManager.saveHealthProfileFlag(healthProfile);
+        await SessionManager.saveSurgeonProfileFlag(surgeonProfile);
         await SessionManager.saveUserEmail(googleUser.email);
         await SessionManager.saveUserName(googleUser.displayName ?? '');
 
-        AuthController.to.loginSuccess(role: role ?? 'surgeon', id: profileId);
+        // Use the role from the server response, fall back to the selectedRole the user picked
+        final effectiveRole = (role != null && role.isNotEmpty) ? role : selectedRole ?? '';
+        AuthController.to.loginSuccess(role: effectiveRole, id: profileId);
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Google Sign-In Successful!'))
         );
 
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SurgeonForm(profileId: profileId, existingData: const {})));
+        // Route based on the user's role and profile completion status
+        final rl = effectiveRole.toLowerCase().trim();
+        if (rl.contains('hospital') || rl.contains('health') || rl.contains('org')) {
+          await SessionManager.saveHealthcareId(profileId);
+          
+          if (healthProfile) {
+            // Existing hospital user -> go to Navbar/Dashboard
+            try {
+              final url = Uri.parse('${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$profileId');
+              final resp = await http.get(url).timeout(const Duration(seconds: 10));
+              if (resp.statusCode == 200) {
+                final parsed = jsonDecode(resp.body);
+                final payload = (parsed is Map && parsed['data'] != null) ? parsed['data'] : parsed;
+                final mapPayload = (payload is Map<String, dynamic>) ? payload : <String, dynamic>{};
+                final navHospitalData = Map<String, dynamic>.from(mapPayload);
+                navHospitalData['healthcare_id'] = profileId;
+                
+                if (!mounted) return;
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => Navbar(hospitalData: navHospitalData)));
+                return;
+              }
+            } catch (_) {}
+          }
+          
+          if (!mounted) return;
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HospitalForm(healthcareId: profileId)));
+        } else {
+          // Surgeon
+          if (surgeonProfile) {
+            if (!mounted) return;
+            Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ProfessionalProfileViewPage(profileId: profileId)));
+            return;
+          }
+          
+          // Double check with API if flag is false
+          try {
+            final res = await ApiService.fetchProfileInfo(profileId);
+            if (res['success'] == true) {
+              final pBody = res['data'];
+              final pData = pBody is Map && pBody['data'] != null ? pBody['data'] : pBody;
+              final p = pData is Map && pData['profile'] != null ? pData['profile'] : pData;
+              
+              final hasValidProfile = p is Map &&
+                  (((p['fullName'] ?? p['fullname'] ?? '').toString().trim().isNotEmpty == true) ||
+                  (p['email']?.toString().trim().isNotEmpty == true));
+                  
+              if (hasValidProfile) {
+                if (!mounted) return;
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ProfessionalProfileViewPage(profileId: profileId)));
+                return;
+              }
+            }
+          } catch (_) {}
+
+          if (!mounted) return;
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SurgeonForm(profileId: profileId, existingData: const {})));
+        }
 
       } else {
         if (!mounted) return;

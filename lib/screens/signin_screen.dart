@@ -24,6 +24,13 @@ import 'package:doc/controllers/auth_controller.dart';
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
+  static const String _googleSvg = '''
+<svg xmlns="http://www.w3.org/2000/svg" width="2443" height="2500" preserveAspectRatio="xMidYMid" viewBox="0 0 256 262">
+  <path fill="#4285F4" d="M255.878 133.451c0-10.734-.871-18.567-2.756-26.69H130.55v48.448h71.947c-1.45 12.04-9.283 30.172-26.69 42.356l-.244 1.622 38.755 30.023 2.685.268c24.659-22.774 38.875-56.282 38.875-96.027"></path>
+  <path fill="#34A853" d="M130.55 261.1c35.248 0 64.839-11.605 86.453-31.622l-41.196-31.913c-11.024 7.688-25.82 13.055-45.257 13.055-34.523 0-63.824-22.773-74.269-54.25l-1.531.13-40.298 31.187-.527 1.465C35.393 231.798 79.49 261.1 130.55 261.1"></path>
+  <path fill="#FBBC05" d="M56.281 156.37c-2.756-8.123-4.351-16.827-4.351-25.82 0-8.994 1.595-17.697 4.206-25.82l-.073-1.73L15.26 71.312l-1.335.635C5.077 89.644 0 109.517 0 130.55s5.077 40.905 13.925 58.602l42.356-32.782"></path>
+  <path fill="#EB4335" d="M130.55 50.479c24.514 0 41.05 10.589 50.479 19.438l36.844-35.974C195.245 12.91 165.798 0 130.55 0 79.49 0 35.393 29.301 13.925 71.947l42.211 32.783c10.59-31.477 39.891-54.251 74.414-54.251"></path>
+</svg>''';
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -34,8 +41,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscureText = true;
   bool _isLoading = false;
-  String selectedRole = "Surgeon";
-  final List<String> roles = ["Surgeon", "Healthcare Organizations"];
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId: '692027562141-g1i83eh2gdq3kkck0qo8b6bemerj6vfn.apps.googleusercontent.com',
+  );
 
   String? _extractProfileId(dynamic source) {
     if (source == null) return null;
@@ -216,7 +225,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
 
-        // Extract or create profile ID (prefer deep extraction, fallback to fields/uuid)
+        // Extract or create profile ID
         final extractedProfileId = _extractProfileId(userData) ??
             (data is Map ? _extractProfileId(data['profile']) : null) ??
             _extractProfileId(data);
@@ -228,276 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
             .trim();
         if (profileId.isEmpty) profileId = uuid.v4();
 
-        // Save session
-        await SessionManager.saveUserId(profileId);
-        await SessionManager.saveProfileId(profileId);
-        await SessionManager.saveToken(token ?? '');
-        if (role != null && role.isNotEmpty) {
-          await SessionManager.saveRole(role);
-        }
-        await SessionManager.saveHealthProfileFlag(healthProfile);
-        await SessionManager.saveSurgeonProfileFlag(surgeonProfile);
-        await SessionManager.saveUserEmail(email);
-
-        // Update Global Auth State
-        AuthController.to.loginSuccess(role: role ?? '', id: profileId);
-
-        // Save phone number if available
-        if (userData is Map) {
-           final phone = (userData['phoneNumber'] ?? 
-                          userData['phone'] ?? 
-                          userData['mobile'] ?? 
-                          userData['mobileNumber'] ?? 
-                          userData['mobilenumber'])?.toString();
-           if (phone != null && phone.isNotEmpty) {
-             await SessionManager.saveUserPhone(phone);
-           }
-
-           final name = (userData['fullName'] ?? 
-                         userData['fullname'] ?? 
-                         userData['name'] ?? 
-                         userData['username'] ??
-                         userData['full_name'])?.toString();
-           if (name != null && name.isNotEmpty) {
-             await SessionManager.saveUserName(name);
-           }
-        }
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text(' Login Successful!')));
-
-        final rl = (role ?? '').toLowerCase().trim();
-        
-        // Check if user is Admin and redirect to Admin Dashboard
-        if (rl.contains('admin')) {
-          // Build admin data from response
-          final adminData = <String, dynamic>{};
-          if (userData is Map) {
-            adminData.addAll(Map<String, dynamic>.from(userData));
-          }
-          if (data is Map) {
-            // Add any missing fields from data
-            data.forEach((key, value) {
-              if (!adminData.containsKey(key)) {
-                adminData[key] = value;
-              }
-            });
-          }
-          
-          await SessionManager.saveAdminData(adminData);
-          
-          if (!mounted) return;
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => AdminNavbar(adminData: adminData),
-            ),
-          );
-        } else if (rl.contains('hospital') || rl.contains('health') || rl.contains('org')) {
-          // Extract primary healthcare ID from signin response
-          String? healthcareId;
-
-          if (userData is Map) {
-            final raw = (userData['_id'] ??
-                    userData['healthcare_id'] ??
-                    userData['healthcareId'] ??
-                    userData['healthcareID'] ??
-                    userData['id'])
-                ?.toString()
-                .trim();
-            if (raw != null && raw.isNotEmpty) {
-              healthcareId = raw;
-            }
-          }
-
-          if ((healthcareId == null || healthcareId.isEmpty) && data is Map) {
-            final raw = (data['_id'] ??
-                    data['healthcare_id'] ??
-                    data['healthcareId'] ??
-                    data['healthcareID'] ??
-                    data['id'])
-                ?.toString()
-                .trim();
-            if (raw != null && raw.isNotEmpty) {
-              healthcareId = raw;
-            }
-          }
-
-
-
-          if (healthcareId != null && healthcareId.isNotEmpty) {
-            await SessionManager.saveHealthcareId(healthcareId);
-          }
-
-          // Existing hospital user: healthprofile == true
-          if (healthProfile) {
-            if (healthcareId == null || healthcareId.isEmpty) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Unable to determine hospital ID.')),
-              );
-              return;
-            }
-
-            try {
-              final url = Uri.parse(
-                  '${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$healthcareId');
-
-              final resp = await http.get(url).timeout(const Duration(seconds: 10));
-
-              if (resp.statusCode == 200) {
-                final body = resp.body.trimLeft();
-                dynamic parsed;
-                try {
-                  parsed = jsonDecode(body);
-                } catch (_) {
-                  parsed = {};
-                }
-
-                final payload =
-                    (parsed is Map && parsed['data'] != null) ? parsed['data'] : parsed;
-                final mapPayload =
-                    (payload is Map<String, dynamic>) ? payload : <String, dynamic>{};
-
-                final navHospitalData = Map<String, dynamic>.from(mapPayload);
-                navHospitalData['healthcare_id'] = healthcareId;
-
-                if (!mounted) return;
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => Navbar(hospitalData: navHospitalData),
-                  ),
-                );
-              } else {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                        'Could not load hospital profile. Please try again.'),
-                  ),
-                );
-              }
-            } catch (_) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                      'Could not load hospital profile. Please try again.'),
-                ),
-              );
-            }
-          } else {
-            // New hospital user (no completed health profile) -> go to HospitalForm
-            final idForForm = (healthcareId != null && healthcareId.isNotEmpty)
-                ? healthcareId
-                : profileId;
-            if (!mounted) return;
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => HospitalForm(healthcareId: idForForm),
-              ),
-            );
-          }
-        } else if (rl.contains('surgeon') || rl.contains('doctor')) {
-          if (surgeonProfile) {
-            if (!mounted) return;
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ProfessionalProfileViewPage(
-                  profileId: profileId,
-                ),
-              ),
-            );
-            return;
-          }
-
-          try {
-            final res = await ApiService.fetchProfileInfo(profileId);
-            if (!mounted) return;
-            if (res['success'] == true) {
-              final body = res['data'];
-              final data = body is Map && body['data'] != null ? body['data'] : body;
-              final p = data is Map && data['profile'] != null ? data['profile'] : data;
-
-              // ✅ Save Free Trial Flag if present
-              if (p is Map) {
-                final freeTrial = p['freetrail2month'];
-                if (freeTrial != null) {
-                  final isFree = freeTrial.toString().toLowerCase() == 'true';
-                  await SessionManager.saveFreeTrialFlag(isFree);
-                }
-              }
-
-              if (!mounted) return;
-              final hasValidProfile = p is Map &&
-                  (((p['fullName'] ?? p['fullname'] ?? '')
-                              .toString()
-                              .trim()
-                              .isNotEmpty ==
-                          true) ||
-                      (p['email']?.toString().trim().isNotEmpty == true) ||
-                      (p['phoneNumber']?.toString().trim().isNotEmpty == true));
-
-              if (hasValidProfile) {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ProfessionalProfileViewPage(
-                      profileId: profileId,
-                    ),
-                  ),
-                );
-              } else {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => SurgeonForm(
-                      profileId: profileId,
-                      existingData: const {},
-                    ),
-                  ),
-                );
-              }
-            } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SurgeonForm(
-                    profileId: profileId,
-                    existingData: const {},
-                  ),
-                ),
-              );
-            }
-          } catch (_) {
-            if (!mounted) return;
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SurgeonForm(
-                  profileId: profileId,
-                  existingData: const {},
-                ),
-              ),
-            );
-          }
-        } else {
-          // Default to Surgeon profile flow if role is unknown
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => SurgeonForm(
-                profileId: profileId,
-                existingData: const {},
-              ),
-            ),
-          );
-        }
+        await _handleLoginSuccess(data, userData, token, role, healthProfile, surgeonProfile, profileId, email);
       } else {
         String message = 'Invalid credentials';
         try {
@@ -533,6 +273,395 @@ class _LoginScreenState extends State<LoginScreen> {
       ).showSnackBar(SnackBar(content: Text('⚠️ Unexpected error: $e')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isLoading) return;
+
+    try {
+      // Force account selection by signing out first
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      setState(() => _isLoading = true);
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      final url = Uri.parse('${AppConfig.apiBaseUrl}/google-signin');
+      final response = await _postWithRetry(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': googleUser.email,
+          'fullname': googleUser.displayName,
+          'googleId': googleUser.id,
+          'idToken': googleAuth.idToken,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final root = jsonDecode(response.body);
+        final data = root is Map && root['data'] != null ? root['data'] : root;
+
+        final token = (data is Map) ? data['token'] : null;
+        final userData = (data is Map)
+            ? (data['user'] ?? data['profile'] ?? data)
+            : data;
+
+        String? role = (userData is Map)
+            ? (userData['type'] ?? userData['role'] ?? (data is Map ? (data['type'] ?? data['role']) : null))?.toString()
+            : null;
+
+        bool healthProfile = false;
+        bool surgeonProfile = false;
+        if (userData is Map) {
+          final rawHp = userData['healthprofile'] ?? userData['healthProfile'];
+          if (rawHp is bool) {
+            healthProfile = rawHp;
+          } else if (rawHp is String) {
+            healthProfile = rawHp.toLowerCase() == 'true';
+          }
+          final rawSp = userData['surgeonprofile'] ?? userData['surgeonProfile'];
+          if (rawSp is bool) {
+            surgeonProfile = rawSp;
+          } else if (rawSp is String) {
+            surgeonProfile = rawSp.toLowerCase() == 'true';
+          }
+        }
+
+        final extractedProfileId = _extractProfileId(userData) ??
+            (data is Map ? _extractProfileId(data['profile']) : null) ??
+            _extractProfileId(data);
+
+        String profileId = (extractedProfileId ??
+                (userData is Map ? userData['_id']?.toString() : null) ??
+                '')
+            .trim();
+        if (profileId.isEmpty) profileId = const Uuid().v4();
+
+        await _handleLoginSuccess(data, userData, token, role, healthProfile, surgeonProfile, profileId, googleUser.email);
+
+      } else {
+        String message = 'Google Sign-In failed';
+        try {
+          final error = jsonDecode(response.body);
+          if (error is Map && error['message'] != null) {
+            message = error['message'];
+          }
+        } catch (_) {}
+
+        if (!mounted) return;
+        
+        // Show a user-friendly message if user is not found or server crashes due to missing user/role
+        if (message.toLowerCase().contains('not found') || 
+            message.toLowerCase().contains('internal server error') || 
+            response.statusCode == 404 || 
+            response.statusCode == 500) {
+          message = "User not found. Please sign up first!";
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ $message'),
+            backgroundColor: Colors.redAccent,
+          )
+        );
+      }
+    } catch (error) {
+      debugPrint('Google Sign-In Error: $error');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('⚠️ Google Sign-In Error: $error'))
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleLoginSuccess(
+    dynamic data,
+    dynamic userData,
+    String? token,
+    String? role,
+    bool healthProfile,
+    bool surgeonProfile,
+    String profileId,
+    String email,
+  ) async {
+    // Save session
+    await SessionManager.saveUserId(profileId);
+    await SessionManager.saveProfileId(profileId);
+    await SessionManager.saveToken(token ?? '');
+    if (role != null && role.isNotEmpty) {
+      await SessionManager.saveRole(role);
+    }
+    await SessionManager.saveHealthProfileFlag(healthProfile);
+    await SessionManager.saveSurgeonProfileFlag(surgeonProfile);
+    await SessionManager.saveUserEmail(email);
+
+    // Update Global Auth State
+    AuthController.to.loginSuccess(role: role ?? '', id: profileId);
+
+    // Save phone number if available
+    if (userData is Map) {
+      final phone = (userData['phoneNumber'] ??
+              userData['phone'] ??
+              userData['mobile'] ??
+              userData['mobileNumber'] ??
+              userData['mobilenumber'])
+          ?.toString();
+      if (phone != null && phone.isNotEmpty) {
+        await SessionManager.saveUserPhone(phone);
+      }
+
+      final name = (userData['fullName'] ??
+              userData['fullname'] ??
+              userData['name'] ??
+              userData['username'] ??
+              userData['full_name'])
+          ?.toString();
+      if (name != null && name.isNotEmpty) {
+        await SessionManager.saveUserName(name);
+      }
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text(' Login Successful!')));
+
+    final rl = (role ?? '').toLowerCase().trim();
+
+    // Check if user is Admin and redirect to Admin Dashboard
+    if (rl.contains('admin')) {
+      // Build admin data from response
+      final adminData = <String, dynamic>{};
+      if (userData is Map) {
+        adminData.addAll(Map<String, dynamic>.from(userData));
+      }
+      if (data is Map) {
+        // Add any missing fields from data
+        data.forEach((key, value) {
+          if (!adminData.containsKey(key)) {
+            adminData[key] = value;
+          }
+        });
+      }
+
+      await SessionManager.saveAdminData(adminData);
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AdminNavbar(adminData: adminData),
+        ),
+      );
+    } else if (rl.contains('hospital') || rl.contains('health') || rl.contains('org')) {
+      // Extract primary healthcare ID from signin response
+      String? healthcareId;
+
+      if (userData is Map) {
+        final raw = (userData['_id'] ??
+                userData['healthcare_id'] ??
+                userData['healthcareId'] ??
+                userData['healthcareID'] ??
+                userData['id'])
+            ?.toString()
+            .trim();
+        if (raw != null && raw.isNotEmpty) {
+          healthcareId = raw;
+        }
+      }
+
+      if ((healthcareId == null || healthcareId.isEmpty) && data is Map) {
+        final raw = (data['_id'] ??
+                data['healthcare_id'] ??
+                data['healthcareId'] ??
+                data['healthcareID'] ??
+                data['id'])
+            ?.toString()
+            .trim();
+        if (raw != null && raw.isNotEmpty) {
+          healthcareId = raw;
+        }
+      }
+
+      if (healthcareId != null && healthcareId.isNotEmpty) {
+        await SessionManager.saveHealthcareId(healthcareId);
+      }
+
+      // Existing hospital user: healthprofile == true
+      if (healthProfile) {
+        if (healthcareId == null || healthcareId.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Unable to determine hospital ID.')),
+          );
+          return;
+        }
+
+        try {
+          final url = Uri.parse(
+              '${AppConfig.apiBaseUrl}/healthcare/healthcare-profile/$healthcareId');
+
+          final resp = await http.get(url).timeout(const Duration(seconds: 10));
+
+          if (resp.statusCode == 200) {
+            final body = resp.body.trimLeft();
+            dynamic parsed;
+            try {
+              parsed = jsonDecode(body);
+            } catch (_) {
+              parsed = {};
+            }
+
+            final payload =
+                (parsed is Map && parsed['data'] != null) ? parsed['data'] : parsed;
+            final mapPayload =
+                (payload is Map<String, dynamic>) ? payload : <String, dynamic>{};
+
+            final navHospitalData = Map<String, dynamic>.from(mapPayload);
+            navHospitalData['healthcare_id'] = healthcareId;
+
+            if (!mounted) return;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => Navbar(hospitalData: navHospitalData),
+              ),
+            );
+          } else {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Could not load hospital profile. Please try again.'),
+              ),
+            );
+          }
+        } catch (_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  'Could not load hospital profile. Please try again.'),
+            ),
+          );
+        }
+      } else {
+        // New hospital user (no completed health profile) -> go to HospitalForm
+        final idForForm = (healthcareId != null && healthcareId.isNotEmpty)
+            ? healthcareId
+            : profileId;
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => HospitalForm(healthcareId: idForForm),
+          ),
+        );
+      }
+    } else if (rl.contains('surgeon') || rl.contains('doctor')) {
+      if (surgeonProfile) {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfessionalProfileViewPage(
+              profileId: profileId,
+            ),
+          ),
+        );
+        return;
+      }
+
+      try {
+        final res = await ApiService.fetchProfileInfo(profileId);
+        if (!mounted) return;
+        if (res['success'] == true) {
+          final body = res['data'];
+          final data = body is Map && body['data'] != null ? body['data'] : body;
+          final p = data is Map && data['profile'] != null ? data['profile'] : data;
+
+          // ✅ Save Free Trial Flag if present
+          if (p is Map) {
+            final freeTrial = p['freetrail2month'];
+            if (freeTrial != null) {
+              final isFree = freeTrial.toString().toLowerCase() == 'true';
+              await SessionManager.saveFreeTrialFlag(isFree);
+            }
+          }
+
+          if (!mounted) return;
+          final hasValidProfile = p is Map &&
+              (((p['fullName'] ?? p['fullname'] ?? '')
+                          .toString()
+                          .trim()
+                          .isNotEmpty ==
+                      true) ||
+                  (p['email']?.toString().trim().isNotEmpty == true) ||
+                  (p['phoneNumber']?.toString().trim().isNotEmpty == true));
+
+          if (hasValidProfile) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ProfessionalProfileViewPage(
+                  profileId: profileId,
+                ),
+              ),
+            );
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => SurgeonForm(
+                  profileId: profileId,
+                  existingData: const {},
+                ),
+              ),
+            );
+          }
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SurgeonForm(
+                profileId: profileId,
+                existingData: const {},
+              ),
+            ),
+          );
+        }
+      } catch (_) {
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => SurgeonForm(
+              profileId: profileId,
+              existingData: const {},
+            ),
+          ),
+        );
+      }
+    } else {
+      // Default to Surgeon profile flow if role is unknown
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => SurgeonForm(
+            profileId: profileId,
+            existingData: const {},
+          ),
+        ),
+      );
     }
   }
 
@@ -680,6 +809,47 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontSize: 16,
                               ),
                             ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 🔹 OR divider
+                  const Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.black12)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text("OR", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      ),
+                      Expanded(child: Divider(color: Colors.black12)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 🔘 Google Sign In Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        side: const BorderSide(color: Colors.black12),
+                      ),
+                      onPressed: _isLoading ? null : _handleGoogleSignIn,
+                      icon: SvgPicture.string(
+                        LoginScreen._googleSvg,
+                        height: 22,
+                      ),
+                      label: const Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
