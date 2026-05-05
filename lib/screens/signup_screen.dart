@@ -11,6 +11,7 @@ import 'package:doc/utils/app_config.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:doc/controllers/auth_controller.dart';
+import 'package:flutter/foundation.dart';
 import 'package:doc/utils/session_manager.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doc/profileprofile/surgeon_form.dart';
@@ -44,6 +45,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool isLoading = false;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
+    clientId: kIsWeb ? '692027562141-g1i83eh2gdq3kkck0qo8b6bemerj6vfn.apps.googleusercontent.com' : null,
     serverClientId: '692027562141-g1i83eh2gdq3kkck0qo8b6bemerj6vfn.apps.googleusercontent.com',
   );
 
