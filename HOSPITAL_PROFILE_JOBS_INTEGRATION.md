@@ -13,7 +13,7 @@ Updated the Hospital Profile screen to display **real job listings** from the ba
 ```dart
 Future<void> _fetchJobs() async
 ```
-- **API Endpoint**: `http://13.203.67.154:3000/api/healthcare/joblist-healthcare/{healthcareId}`
+- **API Endpoint**: `http://13.203.194.88:3000/api/healthcare/joblist-healthcare/{healthcareId}`
 - Same endpoint used in `MyJobsPage` for consistency
 - Fetches jobs specific to the hospital using `healthcare_id` from profile data
 - Handles loading states, errors, and empty states

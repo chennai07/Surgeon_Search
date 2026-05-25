@@ -7,7 +7,7 @@ Integrated Razorpay payment gateway into the Free Trial Ended screen for surgeon
 
 ### API Endpoint
 ```
-POST http://13.203.67.154:3000/api/payment/surgeonorder
+POST http://13.203.194.88:3000/api/payment/surgeonorder
 ```
 
 ### Request Payload
@@ -332,6 +332,6 @@ if (generated_signature === razorpay_signature) {
 ---
 
 **File**: `lib/Subscription Plan Screen/freetrial _endedscreen.dart`  
-**API**: `POST http://13.203.67.154:3000/api/payment/surgeonorder`  
+**API**: `POST http://13.203.194.88:3000/api/payment/surgeonorder`  
 **Amount**: ₹600 for 6 months  
 **Package**: `razorpay_flutter: ^1.3.7`

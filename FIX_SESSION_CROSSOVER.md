@@ -49,7 +49,7 @@ Removed the loop that tried multiple IDs. Now we **ONLY** use the ID from the cu
 print('🔑 Fetching profile with ID from current sign-in: $baseHid');
 
 try {
-  final url = Uri.parse('http://13.203.67.154:3000/api/healthcare/healthcare-profile/$baseHid');
+  final url = Uri.parse('http://13.203.194.88:3000/api/healthcare/healthcare-profile/$baseHid');
   final resp = await http.get(url).timeout(const Duration(seconds: 10));
   
   // ... process response ...
